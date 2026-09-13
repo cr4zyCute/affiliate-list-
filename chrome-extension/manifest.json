@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "LinkVault Saver",
+  "version": "1.0",
+  "description": "Save real product images and titles directly from Shopee and TikTok pages to LinkVault.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.shopee.ph/*",
+    "https://*.tiktok.com/*",
+    "http://localhost:5173/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LinkVault Saver"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.shopee.ph/*",
+        "https://*.tiktok.com/*",
+        "https://*.shp.ee/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

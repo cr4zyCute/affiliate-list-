@@ -194,6 +194,59 @@ function isBotChallenge(title, description) {
 }
 
 /**
+ * Helper to check if a Shopee title is generic (e.g. homepage or regional slogan).
+ */
+function isGenericShopeeTitle(title) {
+  if (!title || typeof title !== 'string') return true;
+  const t = title.trim().toLowerCase();
+  return (
+    t === 'shopee' ||
+    t === 'shopee ph' ||
+    t === 'shopee philippines' ||
+    t === 'shopee product' ||
+    t.includes('shop online with promos') ||
+    t.includes('online shopping | shopee') ||
+    t.startsWith('shopee philippines |') ||
+    t.startsWith('shopee ph |')
+  );
+}
+
+/**
+ * Parses product slug from a Shopee URL (e.g. /Portable-Blender-Mini-USB-i.12345.67890),
+ * converts hyphens to spaces, and title-cases it.
+ */
+function parseShopeeSlugTitle(urlStr) {
+  if (!urlStr) return '';
+  try {
+    const parsed = new URL(urlStr);
+    const pathname = decodeURIComponent(parsed.pathname);
+
+    let slug = '';
+    if (pathname.includes('-i.')) {
+      slug = pathname.split('-i.')[0];
+    } else if (pathname.includes('-cat.')) {
+      slug = pathname.split('-cat.')[0];
+    } else if (pathname.includes('/product/')) {
+      slug = pathname.split('/product/')[1]?.split('/')[0] || '';
+    }
+
+    if (slug) {
+      slug = slug.replace(/^\/+/, '');
+      const words = slug.replace(/[-_+]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+      return words
+        .map((w) => {
+          if (w.length <= 3 && w === w.toUpperCase()) return w;
+          return w.charAt(0).toUpperCase() + w.slice(1);
+        })
+        .join(' ');
+    }
+  } catch {
+    // ignore
+  }
+  return '';
+}
+
+/**
  * Creates an instantaneous link item for optimistic UI updates in the list.
  */
 export function createOptimisticLink(rawUrl) {
@@ -209,7 +262,8 @@ export function createOptimisticLink(rawUrl) {
   let initialDesc = 'Fetching website preview...';
 
   if (category === 'shopee') {
-    initialTitle = 'Shopee Product';
+    const slugTitle = parseShopeeSlugTitle(url);
+    initialTitle = slugTitle || 'Shopee Product';
     initialDesc = 'Fetching Shopee details...';
   } else if (category === 'tiktok') {
     initialTitle = 'TikTok Video';
@@ -287,67 +341,99 @@ export async function fetchLinkMetadata(rawUrl) {
     };
   }
 
-  // CHANGED: Use serverless function /api/tiktok to bypass CORS and Cloudflare bot challenges
+  // CHANGED: TikTok title & metadata extraction via official public oEmbed API
   if (category === 'tiktok' || domain.includes('tiktok.com')) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const apiUrl = `/api/tiktok?url=${encodeURIComponent(url)}`;
-      const response = await fetch(apiUrl, { signal: controller.signal });
+      const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+      const response = await fetch(oembedUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
-        if (data && !data.error && data.image) {
+        if (data) {
+          const cardTitle = data.title && data.title.trim() ? data.title.trim() : 'TikTok Video';
+          const cardDesc = data.author_name ? `By @${data.author_name}` : fallbackData.description;
+          const cardImage = data.thumbnail_url || fallbackData.image;
+
           return {
             ...fallbackData,
-            title: data.title || fallbackTitle,
-            description: data.description || fallbackData.description,
-            image: data.image,
+            title: cardTitle,
+            description: cardDesc,
+            image: cardImage,
             favicon: fallbackData.favicon,
           };
         }
       }
     } catch (err) {
-      console.warn(`TikTok serverless fetch failed for ${url}:`, err.message);
+      console.warn(`TikTok oEmbed fetch failed for ${url}:`, err.message);
     }
-    // Fall back to clean brand fallback if API fails or returns error
-    return fallbackData;
+
+    // Fall back to "TikTok Video" if oEmbed fails or returns empty title
+    return {
+      ...fallbackData,
+      title: 'TikTok Video',
+    };
   }
 
-  // CHANGED: Use serverless function /api/shopee to follow redirects server-side and extract real product image
+  // CHANGED: Shopee title & metadata extraction (s.shopee.ph, shopee.ph, shp.ee)
+  // Resolves final URL via Microlink followRedirects=true, extracts slug before -i. and title-cases it,
+  // uses json.data.title if non-generic, and preserves product image logic.
   if (category === 'shopee' || domain.includes('shopee.') || domain.includes('shp.ee')) {
+    const directSlugTitle = parseShopeeSlugTitle(url);
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const apiUrl = `/api/shopee?url=${encodeURIComponent(url)}`;
-      const response = await fetch(apiUrl, { signal: controller.signal });
+      const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}&followRedirects=true&screenshot=false&meta=true&video=false`;
+      const response = await fetch(microlinkUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (response.ok) {
-        const data = await response.json();
-        if (data && !data.error && data.image) {
+        const json = await response.json();
+        if (json.status === 'success' && json.data) {
+          const resolvedUrl = json.data.url || url;
+          const rawTitle = json.data.title || '';
+          const imageUrl = json.data.image?.url || '';
+
+          // 1. Title: use json.data.title if valid and NOT generic, else parse slug from resolved URL
+          let productTitle = '';
+          if (rawTitle && !isGenericShopeeTitle(rawTitle)) {
+            productTitle = rawTitle;
+          } else {
+            const slugTitle = parseShopeeSlugTitle(resolvedUrl) || directSlugTitle;
+            if (slugTitle) {
+              productTitle = slugTitle;
+            }
+          }
+
+          // 2. Image: real product image if susercontent.com, else fallback Shopee logo
+          const productImage = (imageUrl && imageUrl.includes('susercontent.com'))
+            ? imageUrl
+            : fallbackData.image;
+
           return {
             ...fallbackData,
-            title: data.title || fallbackTitle,
-            description: data.description || fallbackData.description,
-            image: data.image,
-            favicon: fallbackData.favicon,
+            title: productTitle || directSlugTitle || 'Shopee Product',
+            description: json.data.description || resolvedUrl,
+            image: productImage,
+            favicon: json.data.logo?.url || fallbackData.favicon,
           };
         }
       }
     } catch (err) {
-      console.warn(`Shopee serverless fetch failed for ${url}:`, err.message);
+      console.warn(`Shopee metadata fetch failed for ${url}:`, err.message);
     }
 
-    // Final fallback: Shopee logo as image, "Shopee Product" as title, original short URL as description
+    // Final fallback: use parsed slug if available, otherwise "Shopee Product"
     return {
       ...fallbackData,
-      title: 'Shopee Product',
+      title: directSlugTitle || 'Shopee Product',
       description: url,
-      image: 'https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/assets/icon_favicon_1_32.png',
+      image: fallbackData.image,
     };
   }
 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkVault Saver</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <span class="brand-emoji">🔖</span>
+        <span class="brand-name">LinkVault Saver</span>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content -->
+    <main class="popup-body">
+      <!-- 1. Loading State -->
+      <div id="loadingState" class="state-box">
+        <div class="spinner"></div>
+        <p class="state-text">Reading page...</p>
+      </div>
+
+      <!-- 2. Preview Card (Shown on Success) -->
+      <div id="previewCard" class="preview-card" style="display: none;">
+        <div class="thumbnail-box">
+          <img id="previewImage" src="" alt="Thumbnail" class="thumbnail-img" />
+          <div id="imagePlaceholder" class="thumbnail-placeholder" style="display: none;">
+            <span>🛍️</span>
+          </div>
+        </div>
+        <div class="card-details">
+          <span id="domainBadge" class="domain-badge">shopee.ph</span>
+          <h2 id="previewTitle" class="card-title">Product Title</h2>
+          <p id="previewUrl" class="card-url">https://...</p>
+        </div>
+      </div>
+
+      <!-- 3. Failure State -->
+      <div id="errorState" class="state-box error-box" style="display: none;">
+        <span class="error-emoji">😕</span>
+        <p id="errorMessage" class="error-text">
+          Open a Shopee product or TikTok video page first
+        </p>
+      </div>
+    </main>
+
+    <!-- Actions Section -->
+    <section class="popup-footer">
+      <button id="saveBtn" class="btn-save" style="display: none;">
+        Save to LinkVault
+      </button>
+      <div id="statusToast" class="status-toast" style="display: none;"></div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

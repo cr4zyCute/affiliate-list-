@@ -1,16 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { LinkInput } from './components/LinkInput';
 import { LinkList } from './components/LinkList';
 import { Modal } from './components/Modal';
 import { EditModal } from './components/EditModal';
 import { Toast } from './components/Toast';
-import { fetchLinkMetadata, createOptimisticLink, detectCategory } from './services/metadataService';
-import { getStoredLinks, saveStoredLinks } from './utils/storage';
+import {
+  fetchLinkMetadata,
+  createOptimisticLink,
+  detectCategory,
+} from './services/metadataService';
+import {
+  getAllLinks,
+  saveLink,
+  deleteLink,
+  updateLink,
+  linkExists,
+} from './lib/db';
+import {
+  getCachedLinks,
+  setCachedLinks,
+  clearCache,
+} from './utils/storage';
 import './App.css';
 
 export default function App() {
-  const [links, setLinks] = useState(() => getStoredLinks());
+  const [links, setLinks] = useState(() => getCachedLinks());
   const [toast, setToast] = useState(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState(null);
@@ -18,7 +33,98 @@ export default function App() {
     return localStorage.getItem('linkvault_theme') || 'light';
   });
 
-  // Sync theme to document element, body classes, and localStorage
+  // Keep a reference to latest links for event listeners
+  const linksRef = useRef(links);
+  useEffect(() => {
+    linksRef.current = links;
+  }, [links]);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type, id: Date.now() });
+  };
+
+  // Step 5.1: Initial Mount - Load from Turso with fallback to localStorage cache
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        const tursoLinks = await getAllLinks();
+        if (Array.isArray(tursoLinks)) {
+          setLinks(tursoLinks);
+          setCachedLinks(tursoLinks);
+        }
+      } catch (err) {
+        console.warn('Could not load from Turso, using localStorage fallback:', err.message || err);
+        const cached = getCachedLinks();
+        setLinks(cached);
+      }
+    }
+
+    loadInitialData();
+  }, []);
+
+  // Sync pending links from extension on mount and listen for real-time extension saves
+  useEffect(() => {
+    const syncFromPending = async () => {
+      if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+        chrome.storage.local.get(['linkvault_pending'], async (result) => {
+          const pending = result.linkvault_pending || [];
+          if (pending.length > 0) {
+            const current = linksRef.current;
+            const existingUrls = new Set(current.map((l) => l.url.toLowerCase()));
+            const newLinks = pending.filter((l) => !existingUrls.has(l.url.toLowerCase()));
+
+            if (newLinks.length > 0) {
+              const merged = [...newLinks, ...current];
+              setLinks(merged);
+              setCachedLinks(merged);
+
+              // Sync each new extension link to Turso in background
+              for (const item of newLinks) {
+                try {
+                  await saveLink(item);
+                } catch (e) {
+                  console.error('Failed to sync extension link to Turso:', e);
+                }
+              }
+
+              showToast(
+                `Imported ${newLinks.length} link${newLinks.length > 1 ? 's' : ''} from LinkVault Saver`,
+                'success'
+              );
+            }
+
+            chrome.storage.local.remove('linkvault_pending');
+          }
+        });
+      }
+    };
+
+    syncFromPending();
+
+    // Listen for direct sync event from extension injected script
+    const handleSyncEvent = (e) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setLinks(e.detail);
+        setCachedLinks(e.detail);
+        showToast('Saved new link from LinkVault Saver', 'success');
+      } else {
+        const cached = getCachedLinks();
+        if (cached.length > 0) setLinks(cached);
+      }
+    };
+
+    window.addEventListener('focus', syncFromPending);
+    window.addEventListener('storage', handleSyncEvent);
+    window.addEventListener('linkvault_sync_links', handleSyncEvent);
+
+    return () => {
+      window.removeEventListener('focus', syncFromPending);
+      window.removeEventListener('storage', handleSyncEvent);
+      window.removeEventListener('linkvault_sync_links', handleSyncEvent);
+    };
+  }, []);
+
+  // Sync theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     if (theme === 'dark') {
@@ -31,89 +137,142 @@ export default function App() {
     localStorage.setItem('linkvault_theme', theme);
   }, [theme]);
 
-  // Sync to localStorage whenever links change
-  useEffect(() => {
-    saveStoredLinks(links);
-  }, [links]);
-
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type, id: Date.now() });
-  };
-
-  const handleAddLinks = (urls) => {
-    // 1. Instantly create optimistic link objects (includes current ISO date)
-    const optimisticItems = urls.map((url) => {
-      const item = createOptimisticLink(url);
-      item.createdAt = new Date().toISOString();
-      return item;
-    });
-
-    // 2. Immediately add them to the list
-    setLinks((prev) => [...optimisticItems, ...prev]);
-
-    if (optimisticItems.length === 1) {
-      showToast(`Added ${optimisticItems[0].domain}`, 'success');
-    } else {
-      showToast(`Added ${optimisticItems.length} links`, 'success');
-    }
-
-    // 3. In the background, fetch the preview metadata for each link
-    optimisticItems.forEach(async (item) => {
+  // Step 5.2: Add Link Flow
+  const handleAddLinks = async (urls) => {
+    for (const url of urls) {
+      // 1. Check duplicate locally and in Turso
+      const isLocalDuplicate = links.some((l) => l.url.toLowerCase() === url.toLowerCase());
+      let isDbDuplicate = false;
       try {
-        const metadata = await fetchLinkMetadata(item.url);
-        setLinks((prev) =>
-          prev.map((link) =>
-            link.id === item.id
-              ? {
-                  ...link,
-                  ...metadata,
-                  id: item.id,
-                  category: metadata.category || item.category || detectCategory(item.url),
-                  createdAt: link.createdAt || item.createdAt,
-                  isLoading: false,
-                }
-              : link
-          )
-        );
-      } catch (err) {
-        console.error('Metadata fetch error for', item.url, err);
-        setLinks((prev) =>
-          prev.map((link) =>
-            link.id === item.id
-              ? {
-                  ...link,
-                  description: `Link saved from ${link.domain}`,
-                  category: item.category || 'other',
-                  createdAt: link.createdAt || item.createdAt,
-                  isLoading: false,
-                }
-              : link
-          )
-        );
+        isDbDuplicate = await linkExists(url);
+      } catch {
+        // Fall back to local check if Turso query fails
+        isDbDuplicate = false;
       }
-    });
+
+      if (isLocalDuplicate || isDbDuplicate) {
+        showToast('Link already saved', 'warning');
+        continue;
+      }
+
+      // 2. Optimistic UI: add link immediately with isLoading: true
+      const optimisticItem = createOptimisticLink(url);
+      optimisticItem.createdAt = new Date().toISOString();
+
+      setLinks((prev) => {
+        const next = [optimisticItem, ...prev];
+        setCachedLinks(next);
+        return next;
+      });
+
+      showToast(`Adding ${optimisticItem.domain}...`, 'info');
+
+      // 3. Run metadata fetch in background
+      let finalItem = { ...optimisticItem };
+      try {
+        const metadata = await fetchLinkMetadata(optimisticItem.url);
+        finalItem = {
+          ...optimisticItem,
+          ...metadata,
+          category: metadata.category || optimisticItem.category || detectCategory(optimisticItem.url),
+          createdAt: optimisticItem.createdAt,
+          isLoading: false,
+        };
+      } catch (err) {
+        console.error('Metadata fetch error for', optimisticItem.url, err);
+        finalItem = {
+          ...optimisticItem,
+          description: `Link saved from ${optimisticItem.domain}`,
+          category: optimisticItem.category || 'other',
+          createdAt: optimisticItem.createdAt,
+          isLoading: false,
+        };
+      }
+
+      // 4. Update React state with completed metadata
+      setLinks((prev) => {
+        const next = prev.map((l) => (l.id === optimisticItem.id ? finalItem : l));
+        setCachedLinks(next);
+        return next;
+      });
+
+      // 5. Save to Turso & handle fallback
+      try {
+        await saveLink(finalItem);
+        showToast(`Saved ${finalItem.domain}`, 'success');
+      } catch (dbError) {
+        console.warn('Turso save failed, kept in local cache:', dbError);
+        showToast('Saved locally only — sync failed', 'warning');
+      }
+    }
   };
 
-  const handleDeleteLink = (id) => {
+  // Step 5.3: Delete Flow
+  const handleDeleteLink = async (id) => {
+    const previousLinks = [...links];
     const targetLink = links.find((l) => l.id === id);
-    setLinks((prev) => prev.filter((link) => link.id !== id));
-    showToast(`Removed "${targetLink?.title || 'Link'}"`, 'info');
+
+    // 1. Optimistic UI: remove immediately
+    const updated = links.filter((link) => link.id !== id);
+    setLinks(updated);
+    setCachedLinks(updated);
+
+    // 2. Call Turso deleteLink
+    try {
+      await deleteLink(id);
+      showToast(`Removed "${targetLink?.title || 'Link'}"`, 'info');
+    } catch (err) {
+      console.error('Turso delete failed:', err);
+      // 3. Rollback UI on failure
+      setLinks(previousLinks);
+      setCachedLinks(previousLinks);
+      showToast('Delete failed — try again', 'error');
+    }
   };
 
-  const handleClearAll = () => {
-    setLinks([]);
-    showToast('All links have been cleared', 'info');
-  };
+  // Step 5.4: Edit Flow
+  const handleEditLink = async (id, updatedFields) => {
+    const previousLinks = [...links];
 
-  const handleEditLink = (id, updatedFields) => {
-    setLinks((prev) =>
-      prev.map((link) => (link.id === id ? { ...link, ...updatedFields } : link))
+    // 1. Optimistic UI: update immediately
+    const updated = links.map((link) =>
+      link.id === id ? { ...link, ...updatedFields } : link
     );
-    showToast('Bookmark updated', 'success');
+    setLinks(updated);
+    setCachedLinks(updated);
+
+    // 2. Call Turso updateLink
+    try {
+      await updateLink(id, updatedFields);
+      showToast('Bookmark updated', 'success');
+    } catch (err) {
+      console.error('Turso update failed:', err);
+      // 3. Rollback UI on failure
+      setLinks(previousLinks);
+      setCachedLinks(previousLinks);
+      showToast('Update failed', 'error');
+    }
+  };
+
+  const handleClearAll = async () => {
+    const previousLinks = [...links];
+    setLinks([]);
+    clearCache();
+
+    // Delete items in Turso
+    try {
+      for (const item of previousLinks) {
+        await deleteLink(item.id);
+      }
+      showToast('All links have been cleared', 'info');
+    } catch (err) {
+      console.warn('Turso clear failed:', err);
+      showToast('Cleared locally — sync error', 'warning');
+    }
   };
 
   const handleCopyLink = () => {
