@@ -1,18 +1,19 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
 
 export function CategoryTabs({ activeCategory, onSelectCategory, links = [] }) {
   const counts = {
     all: links.length,
-    tiktok: links.filter((l) => l.category === 'tiktok').length,
     shopee: links.filter((l) => l.category === 'shopee').length,
-    other: links.filter((l) => l.category !== 'tiktok' && l.category !== 'shopee').length,
+    lazada: links.filter((l) => l.category === 'lazada').length,
+    tiktok: links.filter((l) => l.category === 'tiktok').length,
+    other: links.filter((l) => !['shopee', 'lazada', 'tiktok'].includes(l.category)).length,
   };
 
   const categories = [
     { id: 'all', label: 'All Links', count: counts.all },
-    { id: 'tiktok', label: 'TikTok', count: counts.tiktok },
     { id: 'shopee', label: 'Shopee', count: counts.shopee },
+    { id: 'lazada', label: 'Lazada', count: counts.lazada },
+    { id: 'tiktok', label: 'TikTok', count: counts.tiktok },
     { id: 'other', label: 'Other', count: counts.other },
   ];
 

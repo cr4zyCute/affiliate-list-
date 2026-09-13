@@ -155,11 +155,20 @@ function getYouTubeVideoId(url) {
 }
 
 /**
- * Automatically detects whether a URL belongs to Shopee, TikTok, or other platforms.
+ * Automatically detects whether a URL belongs to Shopee, TikTok, Lazada, or other platforms.
  */
 export function detectCategory(urlStr) {
   if (!urlStr) return 'other';
   const str = String(urlStr).toLowerCase();
+
+  // Lazada detection
+  if (
+    str.includes('lazada.') ||
+    str.includes('lzd.co') ||
+    str.includes('lazada')
+  ) {
+    return 'lazada';
+  }
 
   // Shopee detection (shopee.ph, shopee.com, shp.ee, ph.shp.ee, shope.ee, affiliate links, etc.)
   if (
@@ -268,6 +277,9 @@ export function createOptimisticLink(rawUrl) {
   } else if (category === 'tiktok') {
     initialTitle = 'TikTok Video';
     initialDesc = 'Fetching TikTok preview...';
+  } else if (category === 'lazada') {
+    initialTitle = 'Lazada Product';
+    initialDesc = 'Fetching Lazada details...';
   } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
     initialTitle = 'YouTube Video';
   }
@@ -292,9 +304,6 @@ export function createOptimisticLink(rawUrl) {
 
 /**
  * Fetches Open Graph / Rich metadata for a given URL.
- * Handles TikTok via official public oEmbed API, Shopee via 3-step strategy
- * (Microlink followRedirects -> AllOrigins CORS unshorten -> Jsonlink extract -> clean logo fallback),
- * YouTube via direct thumbnail resolution, and generic URLs via Microlink.
  */
 export async function fetchLinkMetadata(rawUrl) {
   const url = normalizeUrl(rawUrl);
@@ -311,6 +320,8 @@ export async function fetchLinkMetadata(rawUrl) {
     fallbackTitle = 'Shopee Product';
   } else if (category === 'tiktok') {
     fallbackTitle = 'TikTok Video';
+  } else if (category === 'lazada') {
+    fallbackTitle = 'Lazada Product';
   } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
     fallbackTitle = 'YouTube Video';
   }
@@ -341,11 +352,30 @@ export async function fetchLinkMetadata(rawUrl) {
     };
   }
 
-  // CHANGED: TikTok title & metadata extraction via official public oEmbed API
+  // 1. TikTok Handler (first tries serverless /api/tiktok, then oEmbed)
   if (category === 'tiktok' || domain.includes('tiktok.com')) {
+    // Try serverless API first
+    try {
+      const apiRes = await fetch(`/api/tiktok?url=${encodeURIComponent(url)}`);
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        if (!apiData.error && apiData.title) {
+          return {
+            ...fallbackData,
+            title: apiData.title,
+            description: apiData.description || fallbackData.description,
+            image: apiData.image || fallbackData.image,
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Direct oEmbed fallback
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
       const response = await fetch(oembedUrl, { signal: controller.signal });
@@ -371,19 +401,35 @@ export async function fetchLinkMetadata(rawUrl) {
       console.warn(`TikTok oEmbed fetch failed for ${url}:`, err.message);
     }
 
-    // Fall back to "TikTok Video" if oEmbed fails or returns empty title
     return {
       ...fallbackData,
       title: 'TikTok Video',
     };
   }
 
-  // CHANGED: Shopee title & metadata extraction (s.shopee.ph, shopee.ph, shp.ee)
-  // Resolves final URL via Microlink followRedirects=true, extracts slug before -i. and title-cases it,
-  // uses json.data.title if non-generic, and preserves product image logic.
+  // 2. Shopee Handler (first tries serverless /api/shopee, then Microlink + slug parser)
   if (category === 'shopee' || domain.includes('shopee.') || domain.includes('shp.ee')) {
     const directSlugTitle = parseShopeeSlugTitle(url);
 
+    // Try serverless API first
+    try {
+      const apiRes = await fetch(`/api/shopee?url=${encodeURIComponent(url)}`);
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        if (!apiData.error && (apiData.image || apiData.title)) {
+          return {
+            ...fallbackData,
+            title: apiData.title || directSlugTitle || 'Shopee Product',
+            description: apiData.description || url,
+            image: apiData.image || fallbackData.image,
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // Direct Microlink fallback
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -399,7 +445,6 @@ export async function fetchLinkMetadata(rawUrl) {
           const rawTitle = json.data.title || '';
           const imageUrl = json.data.image?.url || '';
 
-          // 1. Title: use json.data.title if valid and NOT generic, else parse slug from resolved URL
           let productTitle = '';
           if (rawTitle && !isGenericShopeeTitle(rawTitle)) {
             productTitle = rawTitle;
@@ -410,7 +455,6 @@ export async function fetchLinkMetadata(rawUrl) {
             }
           }
 
-          // 2. Image: real product image if susercontent.com, else fallback Shopee logo
           const productImage = (imageUrl && imageUrl.includes('susercontent.com'))
             ? imageUrl
             : fallbackData.image;
@@ -428,7 +472,6 @@ export async function fetchLinkMetadata(rawUrl) {
       console.warn(`Shopee metadata fetch failed for ${url}:`, err.message);
     }
 
-    // Final fallback: use parsed slug if available, otherwise "Shopee Product"
     return {
       ...fallbackData,
       title: directSlugTitle || 'Shopee Product',

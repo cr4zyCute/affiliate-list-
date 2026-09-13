@@ -18,9 +18,10 @@ export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink }) {
   // 1. Filter by category
   let filtered = links.filter((link) => {
     if (activeCategory === 'all') return true;
-    if (activeCategory === 'tiktok') return link.category === 'tiktok';
     if (activeCategory === 'shopee') return link.category === 'shopee';
-    if (activeCategory === 'other') return link.category !== 'tiktok' && link.category !== 'shopee';
+    if (activeCategory === 'lazada') return link.category === 'lazada';
+    if (activeCategory === 'tiktok') return link.category === 'tiktok';
+    if (activeCategory === 'other') return !['shopee', 'lazada', 'tiktok'].includes(link.category);
     return true;
   });
 

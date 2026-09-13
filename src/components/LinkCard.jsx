@@ -114,7 +114,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
 
             {category && category !== 'other' && (
               <span className={`category-tag-badge category-${category}`}>
-                {category === 'shopee' ? 'Shopee' : category === 'tiktok' ? 'TikTok' : category}
+                {category === 'shopee' ? 'Shopee' : category === 'lazada' ? 'Lazada' : category === 'tiktok' ? 'TikTok' : category}
               </span>
             )}
           </div>
