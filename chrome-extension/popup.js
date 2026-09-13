@@ -263,18 +263,29 @@ function handleSave() {
     createdAt: new Date().toISOString()
   };
 
-  // Step 2 — Find the localhost:5173 tab if it is open
-  chrome.tabs.query({ url: 'http://localhost:5173/*' }, (tabs) => {
-    if (tabs.length > 0) {
+  // Step 2 — Find any open LinkVault tab (localhost, Vercel, or custom production domain)
+  chrome.tabs.query({}, (tabs) => {
+    const linkvaultTab = tabs.find((t) => {
+      const url = (t.url || '').toLowerCase();
+      const title = (t.title || '').toLowerCase();
+      return (
+        url.includes('localhost') ||
+        url.includes('127.0.0.1') ||
+        url.includes('vercel.app') ||
+        title.includes('linkvault')
+      );
+    });
+
+    if (linkvaultTab && linkvaultTab.id) {
       // App is open — inject a script directly into the app tab
       chrome.scripting.executeScript(
         {
-          target: { tabId: tabs[0].id },
+          target: { tabId: linkvaultTab.id },
           func: (link) => {
             try {
               const raw = localStorage.getItem('linkvault_bookmarks_v1');
               const existing = raw ? JSON.parse(raw) : [];
-              const alreadyExists = existing.some((l) => l.url === link.url);
+              const alreadyExists = existing.some((l) => l.url.toLowerCase() === link.url.toLowerCase());
               if (!alreadyExists) {
                 existing.unshift(link);
                 localStorage.setItem('linkvault_bookmarks_v1', JSON.stringify(existing));
@@ -298,7 +309,7 @@ function handleSave() {
         }
       );
     } else {
-      // App tab not open — save to chrome.storage.local as pending
+      // App tab not currently open — save to chrome.storage.local as pending
       saveToPending(newLink);
     }
   });

@@ -11,7 +11,9 @@
   "host_permissions": [
     "https://*.shopee.ph/*",
     "https://*.tiktok.com/*",
-    "http://localhost:5173/*"
+    "https://*.shp.ee/*",
+    "http://localhost:*/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
