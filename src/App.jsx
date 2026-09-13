@@ -341,9 +341,10 @@ export default function App() {
       {/* Confirmation Modal for Deleting an Individual Link */}
       <Modal
         isOpen={!!deletingLink}
-        title="Delete this bookmark?"
-        description={`Are you sure you want to delete "${deletingLink?.title || deletingLink?.domain || 'this link'}"? This action cannot be undone.`}
-        confirmText="Yes, Delete"
+        title="Delete this link?"
+        description="This will permanently remove this link from your saved links."
+        confirmText="Delete"
+        cancelText="Cancel"
         onConfirm={() => {
           if (deletingLink) {
             handleDeleteLink(deletingLink.id);
