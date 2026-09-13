@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { LinkInput } from './components/LinkInput';
 import { LinkList } from './components/LinkList';
@@ -24,7 +24,26 @@ import {
 } from './utils/storage';
 import './App.css';
 
+// CHANGED: Helper function to compare remote Turso links with local state to prevent unnecessary re-renders & UI flicker
+function haveLinksChanged(current, incoming) {
+  if (!Array.isArray(current) || !Array.isArray(incoming)) return true;
+  if (current.length !== incoming.length) return true;
+  for (let i = 0; i < incoming.length; i++) {
+    const cur = current[i];
+    const inc = incoming[i];
+    if (!cur || !inc) return true;
+    if (cur.id !== inc.id) return true;
+    if (cur.url !== inc.url) return true;
+    if (cur.title !== inc.title) return true;
+    if (cur.image !== inc.image) return true;
+    if (cur.category !== inc.category) return true;
+    if (cur.description !== inc.description) return true;
+  }
+  return false;
+}
+
 export default function App() {
+  // CHANGED: Use localStorage only as the initial paint cache while Turso loads in the background
   const [links, setLinks] = useState(() => getCachedLinks());
   const [toast, setToast] = useState(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -34,7 +53,7 @@ export default function App() {
     return localStorage.getItem('linkvault_theme') || 'light';
   });
 
-  // Keep a reference to latest links for event listeners
+  // Reference to current links to avoid stale closures in sync triggers
   const linksRef = useRef(links);
   useEffect(() => {
     linksRef.current = links;
@@ -44,43 +63,122 @@ export default function App() {
     setToast({ message, type, id: Date.now() });
   };
 
-  // Step 5.1: Initial Mount - Load from Turso with fallback to localStorage cache
-  useEffect(() => {
-    async function loadInitialData() {
-      try {
-        const tursoLinks = await getAllLinks();
-        if (Array.isArray(tursoLinks) && tursoLinks.length > 0) {
-          setLinks(tursoLinks);
-          setCachedLinks(tursoLinks);
-        } else {
-          // If Turso is empty on first setup, migrate existing localStorage bookmarks to Turso!
-          const cached = getCachedLinks();
-          if (cached.length > 0) {
-            setLinks(cached);
-            // Auto-upload existing bookmarks to Turso
-            for (const item of cached) {
-              try {
-                await saveLink(item);
-              } catch (e) {
-                console.error('Initial sync to Turso failed for:', item.title, e);
-              }
-            }
-          } else {
-            setLinks([]);
-            setCachedLinks([]);
-          }
-        }
-      } catch (err) {
-        console.warn('Could not load from Turso, using localStorage fallback:', err.message || err);
-        const cached = getCachedLinks();
-        setLinks(cached);
-      }
-    }
+  // Flag to avoid concurrent sync fetches
+  const isFetchingRef = useRef(false);
 
-    loadInitialData();
+  // CHANGED: Core Smart Reconciliation & Sync Function from Turso
+  // Silently fetches from Turso, compares by id/fields, and updates state without UI flicker
+  const syncFromTurso = useCallback(async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    try {
+      const remoteLinks = await getAllLinks();
+      if (!Array.isArray(remoteLinks)) return;
+
+      // Handle initial migration if Turso database is empty on very first run
+      if (isInitial && remoteLinks.length === 0) {
+        const cached = getCachedLinks();
+        if (cached.length > 0) {
+          setLinks(cached);
+          for (const item of cached) {
+            try {
+              await saveLink(item);
+            } catch (e) {
+              console.error('Initial migration to Turso failed for:', item.title, e);
+            }
+          }
+          return;
+        }
+      }
+
+      const current = linksRef.current;
+      // Preserve any optimistic items currently in progress (isLoading: true)
+      const pendingOptimistic = current.filter((l) => l.isLoading);
+      const settledCurrent = current.filter((l) => !l.isLoading);
+
+      // Reconcile and only trigger state update if data genuinely changed
+      if (haveLinksChanged(settledCurrent, remoteLinks)) {
+        const nextLinks = pendingOptimistic.length > 0
+          ? [...pendingOptimistic, ...remoteLinks]
+          : remoteLinks;
+
+        setLinks(nextLinks);
+        setCachedLinks(remoteLinks); // update first-paint cache
+      }
+    } catch (err) {
+      if (isInitial) {
+        console.warn('Initial Turso load notice (using cache):', err.message || err);
+      }
+    } finally {
+      isFetchingRef.current = false;
+    }
   }, []);
 
-  // Sync pending links from extension on mount and listen for real-time extension saves
+  // CHANGED: Multi-Device Smart Sync Engine
+  // 1. 5s adaptive polling loop while visible (paused when hidden to save reads)
+  // 2. Instant sync triggers on visibilitychange, window.focus, and window.online
+  // 3. Clean teardown on unmount
+  useEffect(() => {
+    // Initial fetch on mount
+    syncFromTurso(true);
+
+    let pollInterval = null;
+
+    const startPolling = () => {
+      if (!pollInterval) {
+        pollInterval = setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            syncFromTurso(false);
+          }
+        }, 5000);
+      }
+    };
+
+    const stopPolling = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
+
+    // Instant trigger on tab visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncFromTurso(false);
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    // Instant trigger when user focuses tab or unlocks phone screen
+    const handleFocus = () => {
+      syncFromTurso(false);
+    };
+
+    // Instant trigger when device reconnects to internet
+    const handleOnline = () => {
+      syncFromTurso(false);
+    };
+
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [syncFromTurso]);
+
+  // CHANGED: Extension pending queue sync on mount (without old local event listeners)
   useEffect(() => {
     const syncFromPending = async () => {
       if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
@@ -96,7 +194,6 @@ export default function App() {
               setLinks(merged);
               setCachedLinks(merged);
 
-              // Sync each new extension link to Turso in background
               for (const item of newLinks) {
                 try {
                   await saveLink(item);
@@ -104,11 +201,6 @@ export default function App() {
                   console.error('Failed to sync extension link to Turso:', e);
                 }
               }
-
-              showToast(
-                `Imported ${newLinks.length} link${newLinks.length > 1 ? 's' : ''} from LinkVault Saver`,
-                'success'
-              );
             }
 
             chrome.storage.local.remove('linkvault_pending');
@@ -118,28 +210,6 @@ export default function App() {
     };
 
     syncFromPending();
-
-    // Listen for direct sync event from extension injected script
-    const handleSyncEvent = (e) => {
-      if (e.detail && Array.isArray(e.detail)) {
-        setLinks(e.detail);
-        setCachedLinks(e.detail);
-        showToast('Saved new link from LinkVault Saver', 'success');
-      } else {
-        const cached = getCachedLinks();
-        if (cached.length > 0) setLinks(cached);
-      }
-    };
-
-    window.addEventListener('focus', syncFromPending);
-    window.addEventListener('storage', handleSyncEvent);
-    window.addEventListener('linkvault_sync_links', handleSyncEvent);
-
-    return () => {
-      window.removeEventListener('focus', syncFromPending);
-      window.removeEventListener('storage', handleSyncEvent);
-      window.removeEventListener('linkvault_sync_links', handleSyncEvent);
-    };
   }, []);
 
   // Sync theme
@@ -159,7 +229,7 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Step 5.2: Add Link Flow
+  // Step 5.2: Add Link Flow (Optimistic UI + Turso write)
   const handleAddLinks = async (urls) => {
     for (const url of urls) {
       // 1. Check duplicate locally and in Turso
@@ -168,7 +238,6 @@ export default function App() {
       try {
         isDbDuplicate = await linkExists(url);
       } catch {
-        // Fall back to local check if Turso query fails
         isDbDuplicate = false;
       }
 
@@ -237,7 +306,7 @@ export default function App() {
     }
   };
 
-  // Step 5.3: Execute Delete Flow
+  // Step 5.3: Execute Delete Flow (Optimistic UI + Turso write)
   const handleDeleteLink = async (id) => {
     const previousLinks = [...links];
     const targetLink = links.find((l) => l.id === id);
@@ -260,7 +329,7 @@ export default function App() {
     }
   };
 
-  // Step 5.4: Edit Flow
+  // Step 5.4: Edit Flow (Optimistic UI + Turso write)
   const handleEditLink = async (id, updatedFields) => {
     const previousLinks = [...links];
 
