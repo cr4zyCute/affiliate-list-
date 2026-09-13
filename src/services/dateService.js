@@ -58,17 +58,17 @@ export function formatAddedTimestamp(dateIso) {
   const timeStr = formatTime(d);
 
   if (isSameDay(d, now)) {
-    return `Added today • ${timeStr}`;
+    return `today • ${timeStr}`;
   }
   if (isSameDay(d, yesterday)) {
-    return `Added yesterday • ${timeStr}`;
+    return `yesterday • ${timeStr}`;
   }
 
   const monthDay = d.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
   });
-  return `Added ${monthDay} • ${timeStr}`;
+  return `${monthDay} • ${timeStr}`;
 }
 
 /**

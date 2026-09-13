@@ -8,7 +8,7 @@ export function SearchBar({ value, onChange, onClear }) {
       <input
         type="text"
         className="search-input"
-        placeholder="Search title, URL, domain, or description..."
+        placeholder="Search title..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Search links"

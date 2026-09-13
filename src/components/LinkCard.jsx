@@ -1,15 +1,24 @@
 import React, { useState, useRef } from 'react';
-import { ExternalLink, Copy, Check, Globe, Edit3, Loader2, Clock } from 'lucide-react';
+import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2 } from 'lucide-react';
 import { formatAddedTimestamp } from '../services/dateService';
+
+const SWIPE_THRESHOLD = 75; // px distance to activate swipe action
+const MAX_SWIPE_DISTANCE = 130; // max translation clamp
 
 export function LinkCard({ link, onDelete, onCopy, onEdit }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [isPressing, setIsPressing] = useState(false);
+  const [offsetX, setOffsetX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const timerRef = useRef(null);
-  const isLongPressRef = useRef(false);
-  const startCoordsRef = useRef({ x: 0, y: 0 });
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const gestureRef = useRef({
+    active: false,
+    direction: null, // 'horizontal' | 'vertical' | null
+    moved: false,
+    pointerId: null,
+  });
+  const didSwipeRef = useRef(false);
 
   const {
     url,
@@ -23,60 +32,143 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     createdAt,
   } = link;
 
-  // Long press handler using universal Pointer Events
+  // Modern Universal Pointer Events for Smooth Swiping
   const handlePointerDown = (e) => {
-    // Only primary button (left mouse click or touch)
+    // Only primary button (left-click or touch)
     if (e.button !== undefined && e.button !== 0) return;
 
-    isLongPressRef.current = false;
-    startCoordsRef.current = { x: e.clientX, y: e.clientY };
-    setIsPressing(true);
+    // Ignore if target is copy button or internal action
+    if (e.target.closest('.btn-copy')) return;
 
-    timerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
-      setIsPressing(false);
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(40);
-      }
-      // Trigger delete confirmation
-      onDelete(link.id);
-    }, 700);
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    gestureRef.current = {
+      active: true,
+      direction: null,
+      moved: false,
+      pointerId: e.pointerId,
+    };
+    didSwipeRef.current = false;
   };
 
   const handlePointerMove = (e) => {
-    if (!timerRef.current) return;
-    const dx = Math.abs(e.clientX - startCoordsRef.current.x);
-    const dy = Math.abs(e.clientY - startCoordsRef.current.y);
-    // If movement exceeds 10px (e.g. user is scrolling), cancel the long-press timer
-    if (dx > 10 || dy > 10) {
-      cancelLongPress();
+    if (!gestureRef.current.active) return;
+
+    const dx = e.clientX - startPosRef.current.x;
+    const dy = e.clientY - startPosRef.current.y;
+
+    // Determine gesture direction on initial movement
+    if (!gestureRef.current.direction) {
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+
+      if (absX > 6 || absY > 6) {
+        if (absY > absX) {
+          // User is vertically scrolling the page - ignore swipe and allow default scrolling
+          gestureRef.current.direction = 'vertical';
+          return;
+        } else {
+          // User is swiping horizontally
+          gestureRef.current.direction = 'horizontal';
+          gestureRef.current.moved = true;
+          setIsDragging(true);
+
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // pointer capture not supported on some virtual environments
+          }
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (gestureRef.current.direction === 'horizontal') {
+      // Calculate smooth clamped translation with progressive resistance
+      const sign = Math.sign(dx);
+      const absVal = Math.abs(dx);
+      let calculatedX = dx;
+
+      if (absVal > MAX_SWIPE_DISTANCE) {
+        calculatedX = sign * (MAX_SWIPE_DISTANCE + (absVal - MAX_SWIPE_DISTANCE) * 0.15);
+      }
+
+      setOffsetX(calculatedX);
+      if (Math.abs(dx) > 10) {
+        didSwipeRef.current = true;
+      }
     }
   };
 
-  const cancelLongPress = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+  const handlePointerUp = (e) => {
+    if (!gestureRef.current.active) return;
+
+    const currentOffset = offsetX;
+    const isHorizontal = gestureRef.current.direction === 'horizontal';
+
+    // Release pointer capture
+    if (gestureRef.current.pointerId !== null) {
+      try {
+        e.currentTarget.releasePointerCapture(gestureRef.current.pointerId);
+      } catch {
+        // ignore
+      }
     }
-    setIsPressing(false);
+
+    // Reset gesture tracking
+    gestureRef.current = {
+      active: false,
+      direction: null,
+      moved: false,
+      pointerId: null,
+    };
+    setIsDragging(false);
+    setOffsetX(0);
+
+    // Keep didSwipeRef true briefly to prevent click handler from opening link
+    if (isHorizontal && Math.abs(currentOffset) > 10) {
+      didSwipeRef.current = true;
+      setTimeout(() => {
+        didSwipeRef.current = false;
+      }, 200);
+    }
+
+    // Trigger actions if threshold exceeded
+    if (isHorizontal) {
+      if (currentOffset >= SWIPE_THRESHOLD) {
+        // Swipe Right -> Edit Link
+        onEdit && onEdit(link);
+      } else if (currentOffset <= -SWIPE_THRESHOLD) {
+        // Swipe Left -> Delete Confirmation
+        onDelete && onDelete(link.id);
+      }
+    }
   };
 
-  const handlePointerUp = () => {
-    cancelLongPress();
-  };
-
-  const handlePointerCancel = () => {
-    cancelLongPress();
-  };
-
-  const handlePointerLeave = () => {
-    cancelLongPress();
+  const handlePointerCancel = (e) => {
+    if (gestureRef.current.pointerId !== null) {
+      try {
+        e.currentTarget.releasePointerCapture(gestureRef.current.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+    gestureRef.current = {
+      active: false,
+      direction: null,
+      moved: false,
+      pointerId: null,
+    };
+    setIsDragging(false);
+    setOffsetX(0);
+    setTimeout(() => {
+      didSwipeRef.current = false;
+    }, 100);
   };
 
   const handleCardClick = (e) => {
-    // If this click was from completing a long-press hold, do not open the link
-    if (isLongPressRef.current) {
-      isLongPressRef.current = false;
+    // If this click was from completing a swipe gesture, do not open the link
+    if (didSwipeRef.current || Math.abs(offsetX) > 5) {
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -90,152 +182,178 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleEditClick = (e) => {
-    e.stopPropagation();
-    onEdit && onEdit(link);
-  };
-
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       window.open(url, '_blank', 'noopener,noreferrer');
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
-      onDelete(link.id);
+      onDelete && onDelete(link.id);
+    } else if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      onEdit && onEdit(link);
     }
   };
 
   const domainInitial = domain ? domain.replace(/^https?:\/\//, '').charAt(0).toUpperCase() : 'L';
   const timestampText = formatAddedTimestamp(createdAt);
 
+  // Determine active action visual feedback state
+  const isRightSwipe = offsetX > 0;
+  const isLeftSwipe = offsetX < 0;
+  const isThresholdMet = Math.abs(offsetX) >= SWIPE_THRESHOLD;
+
   return (
-    <article
-      className={`link-card animate-card-in ${isLoading ? 'is-loading-card' : ''} ${isPressing ? 'is-pressing' : ''}`}
-      onClick={handleCardClick}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onPointerLeave={handlePointerLeave}
-      role="button"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      title={`Open ${title || domain} (Press and hold to delete)`}
-      aria-label={`Bookmark: ${title || domain}. Press and hold to delete.`}
-    >
-      {/* Visual Preview / Thumbnail Area */}
-      <div className="card-preview-area">
-        {isLoading ? (
-          <div className="preview-loading-box">
-            <Loader2 size={24} className="spinner text-accent" />
-            <span className="loading-badge-text">Fetching preview...</span>
-          </div>
-        ) : image && !imageFailed ? (
-          <img
-            src={image}
-            alt={`Preview of ${title || domain}`}
-            className="preview-image"
-            loading="lazy"
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <div className="preview-fallback">
-            {favicon ? (
-              <img
-                src={favicon}
-                alt=""
-                className="fallback-favicon"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <span className="fallback-monogram">{domainInitial}</span>
-            )}
-            <span className="fallback-badge-text">{domain}</span>
-          </div>
-        )}
+    <div className="swipe-card-container">
+      {/* Background Swipe Action: EDIT (Left side revealed when swiping right) */}
+      <div
+        className={`swipe-action-backdrop swipe-action-edit ${
+          isRightSwipe ? 'is-visible' : ''
+        } ${isRightSwipe && isThresholdMet ? 'is-active-action' : ''}`}
+        aria-hidden="true"
+      >
+        <div className="swipe-action-content">
+          <Edit3 size={18} className="swipe-action-icon" />
+          <span className="swipe-action-label">EDIT</span>
+        </div>
       </div>
 
-      {/* Main Content Info */}
-      <div className="card-content-area">
-        <div className="card-header-row">
-          <div className="card-tags-group">
-            <div className="domain-chip">
-              {favicon && (
+      {/* Background Swipe Action: DELETE (Right side revealed when swiping left) */}
+      <div
+        className={`swipe-action-backdrop swipe-action-delete ${
+          isLeftSwipe ? 'is-visible' : ''
+        } ${isLeftSwipe && isThresholdMet ? 'is-active-action' : ''}`}
+        aria-hidden="true"
+      >
+        <div className="swipe-action-content">
+          <Trash2 size={18} className="swipe-action-icon" />
+          <span className="swipe-action-label">DELETE</span>
+        </div>
+      </div>
+
+      {/* Foreground Link Card */}
+      <article
+        className={`link-card animate-card-in ${isLoading ? 'is-loading-card' : ''} ${
+          isDragging ? 'is-swiping' : ''
+        }`}
+        style={{
+          transform: `translate3d(${offsetX}px, 0, 0)`,
+          transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.25, 1)',
+        }}
+        onClick={handleCardClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        title={`Open ${title || domain} (Swipe right to edit, swipe left to delete)`}
+        aria-label={`Bookmark: ${title || domain}. Swipe right to edit, swipe left to delete.`}
+      >
+        {/* Visual Preview / Thumbnail Area */}
+        <div className="card-preview-area">
+          {isLoading ? (
+            <div className="preview-loading-box">
+              <Loader2 size={24} className="spinner text-accent" />
+              <span className="loading-badge-text">Fetching preview...</span>
+            </div>
+          ) : image && !imageFailed ? (
+            <img
+              src={image}
+              alt={`Preview of ${title || domain}`}
+              className="preview-image"
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <div className="preview-fallback">
+              {favicon ? (
                 <img
                   src={favicon}
                   alt=""
-                  className="domain-favicon"
+                  className="fallback-favicon"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
+              ) : (
+                <span className="fallback-monogram">{domainInitial}</span>
               )}
-              <span className="domain-text">{domain}</span>
-              {isLoading && <span className="loading-pulse-pill">Loading</span>}
+              <span className="fallback-badge-text">{domain}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Main Content Info */}
+        <div className="card-content-area">
+          <div className="card-header-row">
+            <div className="card-tags-group">
+              <div className="domain-chip">
+                {favicon && (
+                  <img
+                    src={favicon}
+                    alt=""
+                    className="domain-favicon"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+                <span className="domain-text">{domain}</span>
+                {isLoading && <span className="loading-pulse-pill">Loading</span>}
+              </div>
+
+              {category && category !== 'other' && (
+                <span className={`category-tag-badge category-${category}`}>
+                  {category === 'shopee' ? 'Shopee' : category === 'lazada' ? 'Lazada' : category === 'tiktok' ? 'TikTok' : category}
+                </span>
+              )}
             </div>
 
-            {category && category !== 'other' && (
-              <span className={`category-tag-badge category-${category}`}>
-                {category === 'shopee' ? 'Shopee' : category === 'lazada' ? 'Lazada' : category === 'tiktok' ? 'TikTok' : category}
-              </span>
-            )}
+            <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className={`card-action-btn btn-copy ${copied ? 'copied' : ''}`}
+                onClick={handleCopyClick}
+                title={copied ? 'Copied to clipboard!' : 'Copy link URL'}
+                aria-label="Copy link URL"
+              >
+                {copied ? <Check size={20} className="text-success" /> : <Copy size={20} />}
+              </button>
+            </div>
           </div>
 
-          <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="card-action-btn btn-edit"
-              onClick={handleEditClick}
-              title="Edit title or notes"
-              aria-label={`Edit ${title || domain}`}
-              disabled={isLoading}
-            >
-              <Edit3 size={16} />
-            </button>
+          <h2 className="card-title" title={title || domain}>
+            {title || domain}
+          </h2>
 
-            <button
-              type="button"
-              className={`card-action-btn btn-copy ${copied ? 'copied' : ''}`}
-              onClick={handleCopyClick}
-              title={copied ? 'Copied to clipboard!' : 'Copy link URL'}
-              aria-label="Copy link URL"
-            >
-              {copied ? <Check size={20} className="text-success" /> : <Copy size={20} />}
-            </button>
-          </div>
-        </div>
+          {description && (
+            <p className={`card-description ${isLoading ? 'card-description-loading' : ''}`} title={description}>
+              {description}
+            </p>
+          )}
 
-        <h2 className="card-title" title={title || domain}>
-          {title || domain}
-        </h2>
-
-        {description && (
-          <p className={`card-description ${isLoading ? 'card-description-loading' : ''}`} title={description}>
-            {description}
-          </p>
-        )}
-
-        <div className="card-footer-row">
-          <span className="card-url-link" title={url}>
-            <Globe size={13} />
-            <span className="card-url-text">{url}</span>
-          </span>
-
-          <div className="card-footer-meta">
-            {timestampText && (
-              <span className="card-timestamp" title={`Created: ${createdAt}`}>
-                <Clock size={12} className="timestamp-icon" />
-                <span>{timestampText}</span>
-              </span>
-            )}
-            <span className="external-indicator">
-              <ExternalLink size={13} />
+          <div className="card-footer-row">
+            <span className="card-url-link" title={url}>
+              <Globe size={13} />
+              <span className="card-url-text">{url}</span>
             </span>
+
+            <div className="card-footer-meta">
+              {timestampText && (
+                <span className="card-timestamp" title={`Created: ${createdAt}`}>
+                  <Clock size={12} className="timestamp-icon" />
+                  <span>{timestampText}</span>
+                </span>
+              )}
+              <span className="external-indicator">
+                <ExternalLink size={13} />
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </div>
   );
 }
