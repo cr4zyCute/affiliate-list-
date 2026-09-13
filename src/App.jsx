@@ -49,9 +49,26 @@ export default function App() {
     async function loadInitialData() {
       try {
         const tursoLinks = await getAllLinks();
-        if (Array.isArray(tursoLinks)) {
+        if (Array.isArray(tursoLinks) && tursoLinks.length > 0) {
           setLinks(tursoLinks);
           setCachedLinks(tursoLinks);
+        } else {
+          // If Turso is empty on first setup, migrate existing localStorage bookmarks to Turso!
+          const cached = getCachedLinks();
+          if (cached.length > 0) {
+            setLinks(cached);
+            // Auto-upload existing bookmarks to Turso
+            for (const item of cached) {
+              try {
+                await saveLink(item);
+              } catch (e) {
+                console.error('Initial sync to Turso failed for:', item.title, e);
+              }
+            }
+          } else {
+            setLinks([]);
+            setCachedLinks([]);
+          }
         }
       } catch (err) {
         console.warn('Could not load from Turso, using localStorage fallback:', err.message || err);
