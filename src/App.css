@@ -284,7 +284,7 @@
 }
 
 /* ==========================================================================
-   Category Tabs (1px Borders)
+   Category Navigation (Horizontal Minimalist Underline Tabs)
    ========================================================================== */
 .link-list-section {
   display: flex;
@@ -293,91 +293,97 @@
   width: 100%;
 }
 
+.category-nav {
+  width: 100%;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 0.15rem;
+}
+
 .category-tabs-container {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  background-color: var(--bg-subtle);
-  padding: 0.35rem 0.45rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
+  gap: 1.5rem;
   overflow-x: auto;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .category-tabs-container::-webkit-scrollbar {
   display: none;
 }
 
-.category-tab-btn {
+.category-tab {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.45rem 0.85rem;
+  padding: 0.65rem 0.2rem;
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border: none;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  position: relative;
+  transition: color 0.15s ease;
 }
 
-.category-tab-btn:hover:not(.active) {
+.category-tab:hover {
   color: var(--text-primary);
-  background-color: var(--bg-hover);
-  border-color: var(--border-hover);
 }
 
-.category-tab-btn.active {
-  background-color: var(--bg-surface);
+.category-tab.is-active {
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.category-tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--text-primary);
+  border-radius: 1px;
+}
+
+.category-tab-name {
+  font-family: var(--font-sans);
 }
 
 .category-tab-count {
   font-size: 0.6875rem;
   font-weight: 500;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--radius-full);
-  background-color: var(--bg-hover);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-}
-
-.category-tab-count.count-active {
-  background-color: var(--bg-subtle);
-  color: var(--text-primary);
+  color: var(--text-tertiary);
 }
 
 /* ==========================================================================
-   Filter & Search Toolbar (Strict 1px Borders)
+   Compact Unified Control Bar (Search + Date Icon + Sort Icon)
    ========================================================================== */
 .filter-controls-container {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding: 0.15rem 0;
+  gap: 0.65rem;
+  width: 100%;
 }
 
-.filter-row-primary {
+.search-filter-bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.65rem;
+  width: 100%;
 }
 
 .search-box {
   flex: 1;
-  min-width: 240px;
   display: flex;
   align-items: center;
   gap: 0.65rem;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.8rem;
+  padding: 0.45rem 0.8rem;
   min-height: 40px;
 }
 
@@ -395,7 +401,7 @@
   border: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 0.8125rem;
+  font-size: 0.84rem;
   outline: none;
 }
 
@@ -418,66 +424,130 @@
   color: var(--text-primary);
 }
 
-/* Date Filter & Sort Controls (1px Border) */
-.date-filter-wrapper {
+/* Filter Actions Group (Calendar & Sort Icon Buttons) */
+.filter-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.icon-dropdown-wrapper {
   position: relative;
 }
 
-.date-filter-select-box,
-.sort-control-wrapper {
+.btn-icon-control {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.8rem;
-  min-height: 40px;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
-}
-
-.date-filter-select-box:focus-within,
-.sort-control-wrapper:focus-within {
-  border-color: var(--border-focus);
-}
-
-.date-filter-select,
-.sort-select {
-  border: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  outline: none;
   cursor: pointer;
-  appearance: none;
-  padding-right: 0.35rem;
+  position: relative;
+  transition: all 0.15s ease;
 }
 
-.date-filter-icon,
-.sort-icon,
-.date-filter-arrow,
-.sort-arrow {
-  color: var(--text-secondary);
-  flex-shrink: 0;
-  pointer-events: none;
+.btn-icon-control:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
 }
 
-/* Custom Date Range Popover (1px Border) */
-.custom-date-panel {
+.btn-icon-control.is-active {
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+  background-color: var(--bg-hover);
+}
+
+/* Subtle Active Dot Indicator */
+.active-dot-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--text-primary);
+}
+
+/* Minimalist Dropdown Menu (1px Border) */
+.dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
+  z-index: 60;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0.75rem;
-  z-index: 40;
-  min-width: 260px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  min-width: 175px;
+  padding: 0.35rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.15rem;
+}
+
+.dropdown-header {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  padding: 0.35rem 0.65rem 0.2rem;
+}
+
+.dropdown-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.65rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.dropdown-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dropdown-item.is-selected {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.dropdown-check-icon {
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+/* Custom Date Range Popover inside Dropdown */
+.dropdown-custom-form {
+  padding: 0.4rem 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 230px;
 }
 
 .custom-date-inputs {
@@ -513,20 +583,25 @@
   border-color: var(--border-focus);
 }
 
-.filter-row-secondary {
+.dropdown-custom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+/* Filter Status Row (Results count & Reset link) */
+.filter-status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.65rem;
   padding: 0 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
 }
 
-.filter-results-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.75rem;
+.filter-count-badge {
   color: var(--text-secondary);
 }
 
@@ -1237,12 +1312,8 @@
     gap: 1.5rem;
   }
 
-  .filter-row-primary {
-    gap: 0.6rem;
-  }
-
-  .search-box {
-    min-width: 180px;
+  .category-tabs-container {
+    gap: 1.25rem;
   }
 
   .link-card {
@@ -1336,81 +1407,34 @@
 
   /* Category tabs touch scrolling */
   .category-tabs-container {
-    padding: 0.35rem 0.4rem;
-    gap: 0.4rem;
-    -webkit-overflow-scrolling: touch;
+    gap: 1.15rem;
+    padding-bottom: 2px;
   }
 
-  .category-tab-btn {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.78rem;
-    min-height: 36px;
+  .category-tab {
+    padding: 0.55rem 0.15rem;
+    font-size: 0.82rem;
     flex-shrink: 0;
   }
 
-  /* Filter & Search Toolbar Mobile Layout (Clean Vertical Stacking) */
-  .filter-controls-container {
-    gap: 0.65rem;
-  }
-
-  .filter-row-primary {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.55rem;
+  /* Search & Filter Toolbar Mobile Layout */
+  .search-filter-bar {
+    gap: 0.45rem;
   }
 
   .search-box {
-    width: 100%;
-    min-width: 100%;
-    min-height: 42px;
-    padding: 0.45rem 0.75rem;
-  }
-
-  .date-filter-wrapper {
-    width: 100%;
-  }
-
-  .date-filter-select-box {
-    width: 100%;
-    justify-content: space-between;
-    min-height: 42px;
-    padding: 0.45rem 0.75rem;
-  }
-
-  .filter-row-secondary {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.55rem;
-  }
-
-  .sort-control-wrapper {
-    width: 100%;
-    justify-content: space-between;
     min-height: 40px;
-    padding: 0.45rem 0.75rem;
+    padding: 0.4rem 0.65rem;
   }
 
-  .filter-results-badge {
-    justify-content: space-between;
-    padding: 0.2rem 0.25rem;
+  .btn-icon-control {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 
-  /* Mobile Custom Date Picker Floating Overlay */
-  .custom-date-panel {
-    position: fixed;
-    top: auto;
-    bottom: 1.5rem;
-    left: 1rem;
-    right: 1rem;
-    width: auto;
-    min-width: 0;
-    max-width: 400px;
-    margin: 0 auto;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-    z-index: 100;
-  }
-
-  /* Responsive Link Card (Comfortable mobile touch targets & readable spacing) */
+  /* Responsive Link Card */
   .link-card {
     padding: 0.85rem 0.85rem;
     gap: 0.75rem;
@@ -1493,6 +1517,10 @@
 @media (max-width: 380px) {
   .app-layout {
     padding: 1rem 0.6rem 3.5rem;
+  }
+
+  .category-tabs-container {
+    gap: 0.9rem;
   }
 
   .card-preview-area {

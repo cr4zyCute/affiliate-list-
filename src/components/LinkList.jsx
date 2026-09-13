@@ -46,7 +46,8 @@ export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink }) {
   const isFiltered =
     activeCategory !== 'all' ||
     searchQuery.trim() !== '' ||
-    dateFilter !== 'all';
+    dateFilter !== 'all' ||
+    sortOrder !== 'newest';
 
   const handleResetFilters = () => {
     setActiveCategory('all');
@@ -58,55 +59,57 @@ export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink }) {
 
   return (
     <section className="link-list-section" aria-label="Timeline of saved links">
-      {/* Category Tabs */}
+      {/* 1. Category Tabs Navigation */}
       <CategoryTabs
         activeCategory={activeCategory}
         onSelectCategory={setActiveCategory}
         links={links}
       />
 
-      {/* Search and Date Filter Bar */}
+      {/* 2. Compact Search & Filter Control Bar */}
       {links.length > 0 && (
         <div className="filter-controls-container">
-          <div className="filter-row-primary">
+          <div className="search-filter-bar">
             <SearchBar
               value={searchQuery}
               onChange={setSearchQuery}
               onClear={() => setSearchQuery('')}
             />
 
-            <DateFilter
-              dateFilter={dateFilter}
-              onChangeFilter={setDateFilter}
-              customRange={customRange}
-              onApplyCustomRange={setCustomRange}
-            />
-          </div>
+            <div className="filter-actions-group">
+              <DateFilter
+                dateFilter={dateFilter}
+                onChangeFilter={setDateFilter}
+                customRange={customRange}
+                onApplyCustomRange={setCustomRange}
+              />
 
-          <div className="filter-row-secondary">
-            <SortControl
-              sortOrder={sortOrder}
-              onChangeSort={setSortOrder}
-            />
-
-            <div className="filter-results-badge">
-              <span>{filtered.length} {filtered.length === 1 ? 'link' : 'links'}</span>
-              {isFiltered && (
-                <button
-                  type="button"
-                  className="btn-reset-filters"
-                  onClick={handleResetFilters}
-                  title="Clear all active filters"
-                >
-                  Reset filters
-                </button>
-              )}
+              <SortControl
+                sortOrder={sortOrder}
+                onChangeSort={setSortOrder}
+              />
             </div>
           </div>
+
+          {isFiltered && (
+            <div className="filter-status-row">
+              <span className="filter-count-badge">
+                {filtered.length} {filtered.length === 1 ? 'link' : 'links'}
+              </span>
+              <button
+                type="button"
+                className="btn-reset-filters"
+                onClick={handleResetFilters}
+                title="Reset all filters to default"
+              >
+                Reset filters
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Main Timeline Display */}
+      {/* 3. Main Timeline Display */}
       <div className="timeline-container">
         {links.length === 0 ? (
           <EmptyState type="no-links" />
