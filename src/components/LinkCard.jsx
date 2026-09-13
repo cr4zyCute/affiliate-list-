@@ -198,6 +198,13 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
   const domainInitial = domain ? domain.replace(/^https?:\/\//, '').charAt(0).toUpperCase() : 'L';
   const timestampText = formatAddedTimestamp(createdAt);
 
+  const isShopee =
+    category === 'shopee' ||
+    (url && (url.toLowerCase().includes('shopee') || url.toLowerCase().includes('shp.ee'))) ||
+    (domain && (domain.toLowerCase().includes('shopee') || domain.toLowerCase().includes('shp.ee')));
+
+  const effectiveFavicon = isShopee ? '/shopee-logo.png' : favicon;
+
   // Determine active action visual feedback state
   const isRightSwipe = offsetX > 0;
   const isLeftSwipe = offsetX < 0;
@@ -268,9 +275,9 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
             />
           ) : (
             <div className="preview-fallback">
-              {favicon ? (
+              {effectiveFavicon ? (
                 <img
-                  src={favicon}
+                  src={effectiveFavicon}
                   alt=""
                   className="fallback-favicon"
                   onError={(e) => {
@@ -290,9 +297,9 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
           <div className="card-header-row">
             <div className="card-tags-group">
               <div className="domain-chip">
-                {favicon && (
+                {effectiveFavicon && (
                   <img
-                    src={favicon}
+                    src={effectiveFavicon}
                     alt=""
                     className="domain-favicon"
                     onError={(e) => {

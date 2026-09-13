@@ -128,6 +128,10 @@ export function getDomainGradient(domain) {
  * Gets high-resolution favicon for domain via Google's reliable favicon service.
  */
 export function getFaviconUrl(domain) {
+  const d = String(domain || '').toLowerCase();
+  if (d.includes('shopee') || d.includes('shp.ee')) {
+    return '/shopee-logo.png';
+  }
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
 }
 
