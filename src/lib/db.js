@@ -1,4 +1,5 @@
 import { createClient } from '@libsql/client/web';
+import { detectCategory } from '../services/metadataService';
 
 const dbUrl = import.meta.env.VITE_TURSO_DATABASE_URL;
 const dbToken = import.meta.env.VITE_TURSO_AUTH_TOKEN;
@@ -63,18 +64,25 @@ export async function getAllLinks() {
       args: [],
     });
 
-    return result.rows.map((row) => ({
-      id: String(row.id || ''),
-      url: String(row.url || ''),
-      domain: String(row.domain || ''),
-      category: String(row.category || 'other'),
-      title: String(row.title || ''),
-      description: String(row.description || ''),
-      image: row.image ? String(row.image) : null,
-      favicon: String(row.favicon || ''),
-      createdAt: String(row.created_at || new Date().toISOString()),
-      isLoading: false,
-    }));
+    return result.rows.map((row) => {
+      const url = String(row.url || '');
+      const autoCategory = detectCategory(url);
+      const rawCategory = String(row.category || 'other');
+      const category = rawCategory && rawCategory !== 'other' ? rawCategory : autoCategory;
+
+      return {
+        id: String(row.id || ''),
+        url,
+        domain: String(row.domain || ''),
+        category,
+        title: String(row.title || ''),
+        description: String(row.description || ''),
+        image: row.image ? String(row.image) : null,
+        favicon: String(row.favicon || ''),
+        createdAt: String(row.created_at || new Date().toISOString()),
+        isLoading: false,
+      };
+    });
   } catch (error) {
     console.error('Turso [getAllLinks] error:', error);
     throw error;

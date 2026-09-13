@@ -11,7 +11,6 @@ export function Header({ totalLinks, onClearAll, theme = 'light', onToggleTheme 
           </div>
           <div className="brand-text">
             <h1 className="brand-title">LinkVault</h1>
-            <p className="brand-subtitle">Save and organize your links</p>
           </div>
         </div>
 
@@ -29,11 +28,11 @@ export function Header({ totalLinks, onClearAll, theme = 'light', onToggleTheme 
           <div className="stats-pill" title="Total saved links">
             <BookmarkCheck size={16} />
             <span>
-              <strong>{totalLinks}</strong> {totalLinks === 1 ? 'Link' : 'Links'}
+              <strong>{totalLinks}</strong> {totalLinks === 1 ? '' : ''}
             </span>
           </div>
 
-          {totalLinks > 0 && (
+          {/* {totalLinks > 0 && (
             <button
               type="button"
               className="btn btn-secondary btn-sm btn-clear-all"
@@ -43,7 +42,7 @@ export function Header({ totalLinks, onClearAll, theme = 'light', onToggleTheme 
               <Trash2 size={14} />
               <span>Clear All</span>
             </button>
-          )}
+          )} */}
         </div>
       </div>
     </header>
