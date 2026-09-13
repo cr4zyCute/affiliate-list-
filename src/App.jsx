@@ -28,6 +28,7 @@ export default function App() {
   const [links, setLinks] = useState(() => getCachedLinks());
   const [toast, setToast] = useState(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [deletingLink, setDeletingLink] = useState(null);
   const [editingLink, setEditingLink] = useState(null);
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('linkvault_theme') || 'light';
@@ -211,7 +212,15 @@ export default function App() {
     }
   };
 
-  // Step 5.3: Delete Flow
+  // Trigger Delete Confirmation Modal
+  const requestDeleteLink = (id) => {
+    const target = links.find((l) => l.id === id);
+    if (target) {
+      setDeletingLink(target);
+    }
+  };
+
+  // Step 5.3: Execute Delete Flow
   const handleDeleteLink = async (id) => {
     const previousLinks = [...links];
     const targetLink = links.find((l) => l.id === id);
@@ -299,7 +308,7 @@ export default function App() {
 
           <LinkList
             links={links}
-            onDeleteLink={handleDeleteLink}
+            onDeleteLink={requestDeleteLink}
             onCopyLink={handleCopyLink}
             onEditLink={(link) => setEditingLink(link)}
           />
@@ -311,6 +320,21 @@ export default function App() {
           </p>
         </footer>
       </div>
+
+      {/* Confirmation Modal for Deleting an Individual Link */}
+      <Modal
+        isOpen={!!deletingLink}
+        title="Delete this bookmark?"
+        description={`Are you sure you want to delete "${deletingLink?.title || deletingLink?.domain || 'this link'}"? This action cannot be undone.`}
+        confirmText="Yes, Delete"
+        onConfirm={() => {
+          if (deletingLink) {
+            handleDeleteLink(deletingLink.id);
+            setDeletingLink(null);
+          }
+        }}
+        onClose={() => setDeletingLink(null)}
+      />
 
       {/* Confirmation Modal for Clearing All Links */}
       <Modal
