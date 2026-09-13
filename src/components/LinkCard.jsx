@@ -303,12 +303,6 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
                 <span className="domain-text">{domain}</span>
                 {isLoading && <span className="loading-pulse-pill">Loading</span>}
               </div>
-
-              {category && category !== 'other' && (
-                <span className={`category-tag-badge category-${category}`}>
-                  {category === 'shopee' ? 'Shopee' : category === 'lazada' ? 'Lazada' : category === 'tiktok' ? 'TikTok' : category}
-                </span>
-              )}
             </div>
 
             <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
@@ -328,17 +322,21 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
             {title || domain}
           </h2>
 
-          {description && (
-            <p className={`card-description ${isLoading ? 'card-description-loading' : ''}`} title={description}>
-              {description}
-            </p>
-          )}
-
-          <div className="card-footer-row">
+          <div className="card-url-row">
             <span className="card-url-link" title={url}>
               <Globe size={13} />
               <span className="card-url-text">{url}</span>
             </span>
+          </div>
+
+          <div className="card-footer-row">
+            {description ? (
+              <p className={`card-description ${isLoading ? 'card-description-loading' : ''}`} title={description}>
+                {description}
+              </p>
+            ) : (
+              <span />
+            )}
 
             <div className="card-footer-meta">
               {timestampText && (
