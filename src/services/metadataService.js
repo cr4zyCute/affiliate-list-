@@ -1,0 +1,399 @@
+/**
+ * Service for URL validation, normalization, and Open Graph metadata extraction.
+ * Includes anti-bot/captcha detection, YouTube thumbnail resolution, and multi-link extraction.
+ */
+
+// Basic domain-to-brand color mapping for vibrant card fallbacks
+const BRAND_COLORS = [
+  'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+  'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
+  'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
+  'linear-gradient(135deg, #10b981 0%, #14b8a6 100%)',
+  'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
+  'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
+];
+
+// Keywords commonly found when an external site's bot protection blocks the scraper
+const BOT_CHALLENGE_KEYWORDS = [
+  'security check',
+  'verify to continue',
+  'just a moment',
+  'attention required',
+  'robot check',
+  'human verification',
+  'cloudflare',
+  'please wait',
+  'are you human',
+  'cf-browser-verification',
+  'access denied',
+];
+
+/**
+ * Normalizes input URL by trimming, removing extraneous whitespace,
+ * stripping trailing punctuation, and adding https:// if protocol is omitted.
+ */
+export function normalizeUrl(input) {
+  if (!input) return '';
+  let trimmed = input.trim();
+
+  // If input contains multiple space-separated parts, take the first URL
+  if (trimmed.includes(' ')) {
+    const parts = trimmed.split(/\s+/).filter(Boolean);
+    trimmed = parts[0] || trimmed;
+  }
+  
+  // Clean off common trailing punctuation like commas, periods, quotes, brackets
+  trimmed = trimmed.replace(/^[<([{"'`]+/, '').replace(/[.,;:)\]}>"'`]+$/, '').trim();
+
+  // If user pasted without protocol (e.g., "shopee.ph" or "vt.tiktok.com/123")
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  }
+  
+  return trimmed;
+}
+
+/**
+ * Extracts all valid URLs from a raw text string, cleanly stripping out surrounding
+ * words, whitespace, newlines, and trailing punctuation.
+ */
+export function extractUrlsFromText(text) {
+  if (!text) return [];
+
+  // Match standard URLs (http/https) and bare domains with paths
+  const urlRegex = /(https?:\/\/[^\s<>"'{}|\\^`]+|[a-zA-Z0-9][-a-zA-Z0-9]{0,62}\.[a-zA-Z]{2,}(?:\/[^\s<>"'{}|\\^`]*)?)/gi;
+  const matches = text.match(urlRegex) || [];
+  const validUrls = [];
+
+  for (let match of matches) {
+    // Strip trailing punctuation often caught from text sentences
+    const cleanMatch = match.replace(/[.,;:)\]}>"'`]+$/, '').trim();
+    if (isValidUrl(cleanMatch)) {
+      validUrls.push(normalizeUrl(cleanMatch));
+    }
+  }
+
+  // Deduplicate
+  return [...new Set(validUrls)];
+}
+
+/**
+ * Validates whether string is a well-formed HTTP/HTTPS URL.
+ */
+export function isValidUrl(input) {
+  if (!input) return false;
+  try {
+    const normalized = normalizeUrl(input);
+    const parsed = new URL(normalized);
+    // Ensure protocol is http or https
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    // Ensure hostname has at least a dot or is localhost
+    if (!parsed.hostname.includes('.') && parsed.hostname !== 'localhost') {
+      return false;
+    }
+    // Basic domain validation
+    return parsed.hostname.length > 3;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extracts clean domain name from URL (e.g., 'youtube.com' from 'https://www.youtube.com/watch?v=123').
+ */
+export function extractDomain(urlStr) {
+  try {
+    const parsed = new URL(urlStr);
+    return parsed.hostname.replace(/^www\./i, '');
+  } catch {
+    return urlStr;
+  }
+}
+
+/**
+ * Generates a consistent gradient background for domain fallback visuals.
+ */
+export function getDomainGradient(domain) {
+  let hash = 0;
+  for (let i = 0; i < domain.length; i++) {
+    hash = domain.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % BRAND_COLORS.length;
+  return BRAND_COLORS[index];
+}
+
+/**
+ * Gets high-resolution favicon for domain via Google's reliable favicon service.
+ */
+export function getFaviconUrl(domain) {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+}
+
+/**
+ * Extracts YouTube video ID if URL is a YouTube watch or short link.
+ */
+function getYouTubeVideoId(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('youtube.com')) {
+      if (parsed.pathname === '/watch') {
+        return parsed.searchParams.get('v');
+      }
+      if (parsed.pathname.startsWith('/shorts/')) {
+        return parsed.pathname.split('/shorts/')[1]?.split(/[?#/]/)[0];
+      }
+    }
+    if (parsed.hostname === 'youtu.be') {
+      return parsed.pathname.slice(1).split(/[?#/]/)[0];
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/**
+ * Automatically detects whether a URL belongs to Shopee, TikTok, or other platforms.
+ */
+export function detectCategory(urlStr) {
+  if (!urlStr) return 'other';
+  const str = String(urlStr).toLowerCase();
+
+  // Shopee detection (shopee.ph, shopee.com, shp.ee, ph.shp.ee, shope.ee, affiliate links, etc.)
+  if (
+    str.includes('shopee.') ||
+    str.includes('shp.ee') ||
+    str.includes('shope.ee') ||
+    str.includes('shopee')
+  ) {
+    return 'shopee';
+  }
+
+  // TikTok detection (tiktok.com, vt.tiktok.com, vm.tiktok.com, tiktok shortlinks, etc.)
+  if (
+    str.includes('tiktok.com') ||
+    str.includes('vt.tiktok') ||
+    str.includes('vm.tiktok') ||
+    str.includes('tiktokv.com') ||
+    str.includes('tiktok')
+  ) {
+    return 'tiktok';
+  }
+
+  return 'other';
+}
+
+/**
+ * Checks if the scraped title/description is an anti-bot challenge (e.g. TikTok/Cloudflare captcha).
+ */
+function isBotChallenge(title, description) {
+  const combined = `${title || ''} ${description || ''}`.toLowerCase();
+  return BOT_CHALLENGE_KEYWORDS.some((kw) => combined.includes(kw));
+}
+
+/**
+ * Creates an instantaneous link item for optimistic UI updates in the list.
+ */
+export function createOptimisticLink(rawUrl) {
+  const url = normalizeUrl(rawUrl);
+  const domain = extractDomain(url);
+  const favicon = getFaviconUrl(domain);
+  const category = detectCategory(url);
+
+  let initialTitle = domain
+    .split('.')[0]
+    .replace(/^./, (c) => c.toUpperCase());
+
+  let initialDesc = 'Fetching website preview...';
+
+  if (category === 'shopee') {
+    initialTitle = 'Shopee Product';
+    initialDesc = 'Fetching Shopee details...';
+  } else if (category === 'tiktok') {
+    initialTitle = 'TikTok Video';
+    initialDesc = 'Fetching TikTok preview...';
+  } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
+    initialTitle = 'YouTube Video';
+  }
+
+  const ytId = getYouTubeVideoId(url);
+  const nativeYtImage = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
+
+  return {
+    id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    url,
+    domain,
+    category,
+    title: initialTitle,
+    description: initialDesc,
+    image: nativeYtImage || null,
+    favicon,
+    fallbackGradient: getDomainGradient(domain),
+    isLoading: !nativeYtImage,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Fetches Open Graph / Rich metadata for a given URL.
+ * Handles TikTok via official public oEmbed API, Shopee via 3-step strategy
+ * (Microlink followRedirects -> AllOrigins CORS unshorten -> Jsonlink extract -> clean logo fallback),
+ * YouTube via direct thumbnail resolution, and generic URLs via Microlink.
+ */
+export async function fetchLinkMetadata(rawUrl) {
+  const url = normalizeUrl(rawUrl);
+  const domain = extractDomain(url);
+  const favicon = getFaviconUrl(domain);
+  const category = detectCategory(url);
+  
+  // Clean default title based on domain & category
+  let fallbackTitle = domain
+    .split('.')[0]
+    .replace(/^./, (c) => c.toUpperCase());
+
+  if (category === 'shopee') {
+    fallbackTitle = 'Shopee Product';
+  } else if (category === 'tiktok') {
+    fallbackTitle = 'TikTok Video';
+  } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
+    fallbackTitle = 'YouTube Video';
+  }
+
+  // Check for native YouTube high-res thumbnail
+  const ytId = getYouTubeVideoId(url);
+  const nativeYtImage = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
+
+  // Default fallback data structure
+  const fallbackData = {
+    id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    url,
+    domain,
+    category,
+    title: fallbackTitle,
+    description: category === 'shopee' ? url : `Link saved from ${domain}`,
+    image: nativeYtImage || (category === 'shopee' ? 'https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/assets/icon_favicon_1_32.png' : category === 'tiktok' ? 'https://sf-static.tiktokcdn.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png' : null),
+    favicon,
+    fallbackGradient: getDomainGradient(domain),
+    createdAt: new Date().toISOString(),
+  };
+
+  // If YouTube URL, prioritize real high-resolution YouTube thumbnail directly
+  if (nativeYtImage) {
+    return {
+      ...fallbackData,
+      image: nativeYtImage,
+    };
+  }
+
+  // CHANGED: Use serverless function /api/tiktok to bypass CORS and Cloudflare bot challenges
+  if (category === 'tiktok' || domain.includes('tiktok.com')) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const apiUrl = `/api/tiktok?url=${encodeURIComponent(url)}`;
+      const response = await fetch(apiUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && !data.error && data.image) {
+          return {
+            ...fallbackData,
+            title: data.title || fallbackTitle,
+            description: data.description || fallbackData.description,
+            image: data.image,
+            favicon: fallbackData.favicon,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`TikTok serverless fetch failed for ${url}:`, err.message);
+    }
+    // Fall back to clean brand fallback if API fails or returns error
+    return fallbackData;
+  }
+
+  // CHANGED: Use serverless function /api/shopee to follow redirects server-side and extract real product image
+  if (category === 'shopee' || domain.includes('shopee.') || domain.includes('shp.ee')) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const apiUrl = `/api/shopee?url=${encodeURIComponent(url)}`;
+      const response = await fetch(apiUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && !data.error && data.image) {
+          return {
+            ...fallbackData,
+            title: data.title || fallbackTitle,
+            description: data.description || fallbackData.description,
+            image: data.image,
+            favicon: fallbackData.favicon,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`Shopee serverless fetch failed for ${url}:`, err.message);
+    }
+
+    // Final fallback: Shopee logo as image, "Shopee Product" as title, original short URL as description
+    return {
+      ...fallbackData,
+      title: 'Shopee Product',
+      description: url,
+      image: 'https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/assets/icon_favicon_1_32.png',
+    };
+  }
+
+  // CHANGED: General fallback flow using Microlink with an updated 8 second timeout.
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=false&meta=true`;
+    const response = await fetch(apiUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return fallbackData;
+    }
+
+    const json = await response.json();
+    if (json.status === 'success' && json.data) {
+      let { title, description, image, logo, publisher } = json.data;
+
+      // Anti-Bot Challenge / Captcha Interception Filter:
+      if (isBotChallenge(title, description)) {
+        console.warn(`Detected anti-bot security challenge from ${domain}. Using clean platform fallback.`);
+        title = `${fallbackTitle} (Protected Link)`;
+        description = `Direct link to ${domain}`;
+        image = null;
+      }
+
+      const finalImage = nativeYtImage || image?.url || null;
+
+      return {
+        id: fallbackData.id,
+        url,
+        domain: publisher || domain,
+        category: category,
+        title: title || fallbackTitle,
+        description: description || `Bookmarks on ${domain}`,
+        image: finalImage,
+        favicon: logo?.url || favicon,
+        fallbackGradient: getDomainGradient(domain),
+        createdAt: fallbackData.createdAt,
+      };
+    }
+  } catch (err) {
+    console.warn(`Error retrieving Open Graph metadata for ${url}:`, err.message);
+  }
+
+  return fallbackData;
+}
