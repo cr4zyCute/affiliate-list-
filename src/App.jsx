@@ -24,6 +24,17 @@ import {
 } from './utils/storage';
 import './App.css';
 
+/**
+ * HOW TO INSTALL LINKVAULT AS PWA ON ANDROID:
+ * 1. Open LinkVault in Chrome on Android
+ * 2. Tap the 3-dot menu (top right)
+ * 3. Tap "Add to Home Screen" or "Install App"
+ * 4. Tap Install
+ * 5. Now when you share any link from TikTok/Shopee:
+ *    tap the share button → scroll to find "LinkVault" → tap it
+ *    → link is saved automatically
+ */
+
 // CHANGED: Helper function to compare remote Turso links with local state to prevent unnecessary re-renders & UI flicker
 function haveLinksChanged(current, incoming) {
   if (!Array.isArray(current) || !Array.isArray(incoming)) return true;
@@ -177,6 +188,29 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
     };
   }, [syncFromTurso]);
+
+  // CHANGED: Handle incoming shared link from Android share sheet
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedUrl = params.get('url') || params.get('text');
+
+    if (sharedUrl && (window.location.pathname === '/share-target' || window.location.pathname.startsWith('/share-target'))) {
+      // Extract the URL if it was shared as text (e.g. "Check this out: https://...")
+      const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/);
+      const extractedUrl = urlMatch ? urlMatch[0] : sharedUrl;
+
+      if (extractedUrl) {
+        // Automatically add the link — same flow as typing it in manually
+        handleAddLinks([extractedUrl]);
+
+        // Clean up the URL so the share-target path disappears
+        window.history.replaceState({}, '', '/');
+
+        // Show a brief toast
+        showToast('Link saved from share!');
+      }
+    }
+  }, []);
 
   // CHANGED: Extension pending queue sync on mount (without old local event listeners)
   useEffect(() => {
