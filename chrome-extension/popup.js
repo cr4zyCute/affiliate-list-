@@ -1,25 +1,67 @@
 /**
  * LinkVault Saver - Popup Script
- * Reads metadata from active tab content script and saves directly into LinkVault app
- * via chrome.scripting or chrome.storage.local (Zero fetch calls to localhost).
+ * Extracts real product image and title from page DOM,
+ * accepts the user's affiliate short link, and saves it directly to LinkVault.
  */
 
 let extractedData = null;
 
 // DOM Elements
 const loadingState = document.getElementById('loadingState');
-const previewCard = document.getElementById('previewCard');
+const contentSection = document.getElementById('contentSection');
 const errorState = document.getElementById('errorState');
 const errorMessage = document.getElementById('errorMessage');
 
 const previewImage = document.getElementById('previewImage');
 const imagePlaceholder = document.getElementById('imagePlaceholder');
 const previewTitle = document.getElementById('previewTitle');
-const previewUrl = document.getElementById('previewUrl');
 const domainBadge = document.getElementById('domainBadge');
+
+const pageUrlInput = document.getElementById('pageUrlInput');
+const affiliateLinkInput = document.getElementById('affiliateLinkInput');
+const affiliateError = document.getElementById('affiliateError');
+const pasteBtn = document.getElementById('pasteBtn');
 
 const saveBtn = document.getElementById('saveBtn');
 const statusToast = document.getElementById('statusToast');
+
+/**
+ * Extracts domain name from a raw URL.
+ */
+function extractDomain(urlStr) {
+  try {
+    let normalized = urlStr.trim();
+    if (!/^https?:\/\//i.test(normalized)) {
+      normalized = `https://${normalized}`;
+    }
+    const parsed = new URL(normalized);
+    return parsed.hostname.replace(/^www\./i, '');
+  } catch {
+    return 'link';
+  }
+}
+
+/**
+ * Detects category from URL.
+ */
+function detectCategory(urlStr) {
+  const str = String(urlStr || '').toLowerCase();
+  if (str.includes('lazada.') || str.includes('lzd.co') || str.includes('lazada')) return 'lazada';
+  if (str.includes('shopee.') || str.includes('shp.ee') || str.includes('shope.ee') || str.includes('shopee')) return 'shopee';
+  if (str.includes('tiktok.com') || str.includes('vt.tiktok') || str.includes('vm.tiktok') || str.includes('tiktokv.com') || str.includes('tiktok')) return 'tiktok';
+  return 'other';
+}
+
+/**
+ * Normalizes input URL.
+ */
+function normalizeUrl(input) {
+  let trimmed = (input || '').trim();
+  if (!/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  }
+  return trimmed;
+}
 
 /**
  * Displays status message toast and auto-closes popup.
@@ -50,18 +92,17 @@ function saveToPending(link) {
 }
 
 /**
- * Renders the preview card on successful data extraction.
+ * Renders the preview and prepares input fields on successful DOM extraction.
  */
-function showPreview(data) {
+function showPreview(data, tabUrl) {
   extractedData = data;
 
   // Domain badge
-  domainBadge.textContent =
-    data.domain || (data.category === 'shopee' ? 'shopee.ph' : 'tiktok.com');
+  const initialDomain = data.domain || (data.category === 'shopee' ? 'shopee.ph' : 'tiktok.com');
+  domainBadge.textContent = initialDomain;
 
-  // Title & URL
-  previewTitle.textContent = data.title || 'Untitled';
-  previewUrl.textContent = data.url;
+  // Title
+  previewTitle.textContent = data.title || 'Untitled Product';
 
   // Image handling
   if (data.image) {
@@ -77,13 +118,21 @@ function showPreview(data) {
     imagePlaceholder.style.display = 'flex';
   }
 
-  // Display preview & save button
+  // Field 1: Auto-fill read-only product page URL
+  pageUrlInput.value = tabUrl || data.url || '';
+
+  // Display content section & save button
   loadingState.style.display = 'none';
   errorState.style.display = 'none';
-  previewCard.style.display = 'flex';
+  contentSection.style.display = 'flex';
   saveBtn.style.display = 'block';
   saveBtn.disabled = false;
   saveBtn.textContent = 'Save to LinkVault';
+
+  // Focus affiliate link input for immediate paste
+  setTimeout(() => {
+    affiliateLinkInput.focus();
+  }, 100);
 }
 
 /**
@@ -91,10 +140,27 @@ function showPreview(data) {
  */
 function showError(msg) {
   loadingState.style.display = 'none';
-  previewCard.style.display = 'none';
+  contentSection.style.display = 'none';
   saveBtn.style.display = 'none';
   errorState.style.display = 'flex';
   errorMessage.textContent = msg || 'Open a Shopee product or TikTok video page first';
+}
+
+/**
+ * Quick Paste handler from clipboard.
+ */
+async function handlePaste() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      affiliateLinkInput.value = text.trim();
+      affiliateError.style.display = 'none';
+      affiliateLinkInput.classList.remove('has-error');
+    }
+  } catch {
+    // Clipboard permission might be blocked, focus input instead
+    affiliateLinkInput.focus();
+  }
 }
 
 /**
@@ -122,7 +188,7 @@ async function init() {
     // Send extractData message to the content script
     chrome.tabs.sendMessage(tab.id, { action: 'extractData' }, async (response) => {
       if (chrome.runtime.lastError || !response) {
-        // Content script might not be injected yet (tab opened before extension install)
+        // Inject content script if not yet present
         try {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -132,7 +198,7 @@ async function init() {
           // Retry extraction after injection
           chrome.tabs.sendMessage(tab.id, { action: 'extractData' }, (retryResponse) => {
             if (retryResponse && retryResponse.success && retryResponse.data) {
-              showPreview(retryResponse.data);
+              showPreview(retryResponse.data, tabUrl);
             } else {
               showError(retryResponse?.error || 'Open a Shopee product or TikTok video page first');
             }
@@ -141,7 +207,7 @@ async function init() {
           showError('Open a Shopee product or TikTok video page first');
         }
       } else if (response.success && response.data) {
-        showPreview(response.data);
+        showPreview(response.data, tabUrl);
       } else {
         showError(response.error || 'Open a Shopee product or TikTok video page first');
       }
@@ -153,25 +219,45 @@ async function init() {
 
 /**
  * On "Save to LinkVault" button click:
- * Injects directly into localhost:5173 tab if open, or saves to chrome.storage.local
+ * Validates Field 2 (Affiliate link) and saves with DOM extracted title & image.
  */
 function handleSave() {
   if (!extractedData) return;
+
+  const rawAffiliateUrl = affiliateLinkInput.value.trim();
+
+  // Validate Field 2: Affiliate Link
+  if (!rawAffiliateUrl) {
+    affiliateError.style.display = 'block';
+    affiliateLinkInput.classList.add('has-error');
+    affiliateLinkInput.focus();
+    return;
+  }
+
+  affiliateError.style.display = 'none';
+  affiliateLinkInput.classList.remove('has-error');
+
+  const affiliateUrl = normalizeUrl(rawAffiliateUrl);
+  const affiliateDomain = extractDomain(affiliateUrl);
+  const affiliateCategory = detectCategory(affiliateUrl) !== 'other' 
+    ? detectCategory(affiliateUrl) 
+    : (extractedData.category || 'other');
 
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
   statusToast.style.display = 'none';
 
-  // Step 1 — Build the link object
+  // Step 1 — Build the link object:
+  // Use user's affiliate link for url/domain/category, but real DOM metadata for title & image!
   const newLink = {
     id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    url: extractedData.url,
-    domain: extractedData.domain,
-    category: extractedData.category,
-    title: extractedData.title,
-    description: extractedData.category === 'tiktok' ? 'TikTok Video' : 'Shopee Product',
+    url: affiliateUrl,
+    domain: affiliateDomain,
+    category: affiliateCategory,
+    title: extractedData.title || (affiliateCategory === 'shopee' ? 'Shopee Product' : 'TikTok Video'),
+    description: affiliateCategory === 'tiktok' ? 'TikTok Video' : 'Shopee Product',
     image: extractedData.image || null,
-    favicon: `https://www.google.com/s2/favicons?domain=${extractedData.domain}&sz=128`,
+    favicon: `https://www.google.com/s2/favicons?domain=${affiliateDomain}&sz=128`,
     fallbackGradient: null,
     isLoading: false,
     createdAt: new Date().toISOString()
@@ -181,7 +267,6 @@ function handleSave() {
   chrome.tabs.query({ url: 'http://localhost:5173/*' }, (tabs) => {
     if (tabs.length > 0) {
       // App is open — inject a script directly into the app tab
-      // that writes to its own localStorage
       chrome.scripting.executeScript(
         {
           target: { tabId: tabs[0].id },
@@ -189,12 +274,10 @@ function handleSave() {
             try {
               const raw = localStorage.getItem('linkvault_bookmarks_v1');
               const existing = raw ? JSON.parse(raw) : [];
-              // Avoid duplicates by URL
               const alreadyExists = existing.some((l) => l.url === link.url);
               if (!alreadyExists) {
-                existing.unshift(link); // add to top of list
+                existing.unshift(link);
                 localStorage.setItem('linkvault_bookmarks_v1', JSON.stringify(existing));
-                // Dispatch event so React app updates immediately in the active tab
                 window.dispatchEvent(
                   new CustomEvent('linkvault_sync_links', { detail: existing })
                 );
@@ -210,7 +293,6 @@ function handleSave() {
           if (results && results[0]?.result === true) {
             showStatus('✓ Saved to LinkVault!', 'green');
           } else {
-            // fallback to chrome.storage
             saveToPending(newLink);
           }
         }
@@ -222,5 +304,22 @@ function handleSave() {
   });
 }
 
+// Event Listeners
 saveBtn.addEventListener('click', handleSave);
+pasteBtn.addEventListener('click', handlePaste);
+
+affiliateLinkInput.addEventListener('input', () => {
+  if (affiliateLinkInput.value.trim()) {
+    affiliateError.style.display = 'none';
+    affiliateLinkInput.classList.remove('has-error');
+  }
+});
+
+affiliateLinkInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleSave();
+  }
+});
+
 document.addEventListener('DOMContentLoaded', init);

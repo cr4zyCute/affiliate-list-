@@ -21,22 +21,72 @@
       <!-- 1. Loading State -->
       <div id="loadingState" class="state-box">
         <div class="spinner"></div>
-        <p class="state-text">Reading page...</p>
+        <p class="state-text">Reading product details...</p>
       </div>
 
-      <!-- 2. Preview Card (Shown on Success) -->
-      <div id="previewCard" class="preview-card" style="display: none;">
-        <div class="thumbnail-box">
-          <img id="previewImage" src="" alt="Thumbnail" class="thumbnail-img" />
-          <div id="imagePlaceholder" class="thumbnail-placeholder" style="display: none;">
-            <span>🛍️</span>
+      <!-- 2. Preview & Inputs (Shown on Success) -->
+      <div id="contentSection" class="content-section" style="display: none;">
+        <!-- Preview Card -->
+        <div id="previewCard" class="preview-card">
+          <div class="thumbnail-box">
+            <img id="previewImage" src="" alt="Thumbnail" class="thumbnail-img" />
+            <div id="imagePlaceholder" class="thumbnail-placeholder" style="display: none;">
+              <span>🛍️</span>
+            </div>
+          </div>
+          <div class="card-details">
+            <span id="domainBadge" class="domain-badge">shopee.ph</span>
+            <h2 id="previewTitle" class="card-title">Product Title</h2>
           </div>
         </div>
-        <div class="card-details">
-          <span id="domainBadge" class="domain-badge">shopee.ph</span>
-          <h2 id="previewTitle" class="card-title">Product Title</h2>
-          <p id="previewUrl" class="card-url">https://...</p>
-        </div>
+
+        <!-- Form Fields -->
+        <form id="saveForm" class="link-form" novalidate>
+          <!-- Field 1: Page URL (Auto-filled, Read-only) -->
+          <div class="form-group">
+            <label for="pageUrlInput" class="form-label">
+              <span>Product page</span>
+              <span class="label-badge">Auto-detected</span>
+            </label>
+            <input
+              id="pageUrlInput"
+              type="text"
+              class="form-input form-input-readonly"
+              readonly
+              tabindex="-1"
+              value=""
+            />
+          </div>
+
+          <!-- Field 2: Affiliate link (Manual input, Required) -->
+          <div class="form-group">
+            <label for="affiliateLinkInput" class="form-label">
+              <span>Affiliate link to save <span class="required-star">*</span></span>
+            </label>
+            <div class="input-wrapper">
+              <input
+                id="affiliateLinkInput"
+                type="url"
+                class="form-input form-input-affiliate"
+                placeholder="Paste your affiliate link here"
+                autocomplete="off"
+                spellcheck="false"
+                required
+              />
+              <button
+                id="pasteBtn"
+                type="button"
+                class="btn-paste"
+                title="Paste from clipboard"
+              >
+                Paste
+              </button>
+            </div>
+            <div id="affiliateError" class="input-error" style="display: none;">
+              Please paste your affiliate link
+            </div>
+          </div>
+        </form>
       </div>
 
       <!-- 3. Failure State -->
