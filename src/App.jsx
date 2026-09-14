@@ -263,7 +263,7 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Step 5.2: Add Link Flow (Optimistic UI + Turso write)
+  // Step 5.2: Add Link Flow (Instant Link Addition + Turso write)
   const handleAddLinks = async (urls) => {
     for (const url of urls) {
       // 1. Check duplicate locally and in Turso
@@ -280,51 +280,22 @@ export default function App() {
         continue;
       }
 
-      // 2. Optimistic UI: add link immediately with isLoading: true
-      const optimisticItem = createOptimisticLink(url);
-      optimisticItem.createdAt = new Date().toISOString();
+      // 2. Create link immediately
+      const item = createOptimisticLink(url);
+      item.createdAt = new Date().toISOString();
+      item.isLoading = false;
 
+      // 3. Add directly to state and local cache
       setLinks((prev) => {
-        const next = [optimisticItem, ...prev];
+        const next = [item, ...prev];
         setCachedLinks(next);
         return next;
       });
 
-      showToast(`Adding ${optimisticItem.domain}...`, 'info');
-
-      // 3. Run metadata fetch in background
-      let finalItem = { ...optimisticItem };
+      // 4. Save to Turso
       try {
-        const metadata = await fetchLinkMetadata(optimisticItem.url);
-        finalItem = {
-          ...optimisticItem,
-          ...metadata,
-          category: metadata.category || optimisticItem.category || detectCategory(optimisticItem.url),
-          createdAt: optimisticItem.createdAt,
-          isLoading: false,
-        };
-      } catch (err) {
-        console.error('Metadata fetch error for', optimisticItem.url, err);
-        finalItem = {
-          ...optimisticItem,
-          description: `Link saved from ${optimisticItem.domain}`,
-          category: optimisticItem.category || 'other',
-          createdAt: optimisticItem.createdAt,
-          isLoading: false,
-        };
-      }
-
-      // 4. Update React state with completed metadata
-      setLinks((prev) => {
-        const next = prev.map((l) => (l.id === optimisticItem.id ? finalItem : l));
-        setCachedLinks(next);
-        return next;
-      });
-
-      // 5. Save to Turso & handle fallback
-      try {
-        await saveLink(finalItem);
-        showToast(`Saved ${finalItem.domain}`, 'success');
+        await saveLink(item);
+        showToast(`Saved ${item.domain}`, 'success');
       } catch (dbError) {
         console.warn('Turso save failed, kept in local cache:', dbError);
         showToast('Saved locally only — sync failed', 'warning');

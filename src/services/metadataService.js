@@ -272,18 +272,13 @@ export function createOptimisticLink(rawUrl) {
     .split('.')[0]
     .replace(/^./, (c) => c.toUpperCase());
 
-  let initialDesc = 'Fetching website preview...';
-
   if (category === 'shopee') {
     const slugTitle = parseShopeeSlugTitle(url);
-    initialTitle = slugTitle || 'Shopee Product';
-    initialDesc = 'Fetching Shopee details...';
+    initialTitle = slugTitle || 'Shopee Link';
   } else if (category === 'tiktok') {
-    initialTitle = 'TikTok Video';
-    initialDesc = 'Fetching TikTok preview...';
+    initialTitle = 'TikTok Link';
   } else if (category === 'lazada') {
-    initialTitle = 'Lazada Product';
-    initialDesc = 'Fetching Lazada details...';
+    initialTitle = 'Lazada Link';
   } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
     initialTitle = 'YouTube Video';
   }
@@ -297,17 +292,18 @@ export function createOptimisticLink(rawUrl) {
     domain,
     category,
     title: initialTitle,
-    description: initialDesc,
+    description: '',
     image: nativeYtImage || null,
     favicon,
     fallbackGradient: getDomainGradient(domain),
-    isLoading: !nativeYtImage,
+    isLoading: false,
     createdAt: new Date().toISOString(),
   };
 }
 
 /**
  * Fetches Open Graph / Rich metadata for a given URL.
+ * Skips scraping for platforms like Shopee and TikTok.
  */
 export async function fetchLinkMetadata(rawUrl) {
   const url = normalizeUrl(rawUrl);
@@ -321,11 +317,11 @@ export async function fetchLinkMetadata(rawUrl) {
     .replace(/^./, (c) => c.toUpperCase());
 
   if (category === 'shopee') {
-    fallbackTitle = 'Shopee Product';
+    fallbackTitle = parseShopeeSlugTitle(url) || 'Shopee Link';
   } else if (category === 'tiktok') {
-    fallbackTitle = 'TikTok Video';
+    fallbackTitle = 'TikTok Link';
   } else if (category === 'lazada') {
-    fallbackTitle = 'Lazada Product';
+    fallbackTitle = 'Lazada Link';
   } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
     fallbackTitle = 'YouTube Video';
   }
@@ -334,6 +330,23 @@ export async function fetchLinkMetadata(rawUrl) {
   const ytId = getYouTubeVideoId(url);
   const nativeYtImage = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
 
+  // Instant response for Shopee, TikTok, and Lazada (no useless scraping or slow API calls)
+  if (category === 'shopee' || category === 'tiktok' || category === 'lazada') {
+    return {
+      id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      url,
+      domain,
+      category,
+      title: fallbackTitle,
+      description: '',
+      image: null,
+      favicon,
+      fallbackGradient: getDomainGradient(domain),
+      isLoading: false,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
   // Default fallback data structure
   const fallbackData = {
     id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -341,14 +354,15 @@ export async function fetchLinkMetadata(rawUrl) {
     domain,
     category,
     title: fallbackTitle,
-    description: category === 'shopee' ? url : `Link saved from ${domain}`,
-    image: nativeYtImage || (category === 'shopee' ? 'https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/assets/icon_favicon_1_32.png' : category === 'tiktok' ? 'https://sf-static.tiktokcdn.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png' : null),
+    description: '',
+    image: nativeYtImage || null,
     favicon,
     fallbackGradient: getDomainGradient(domain),
+    isLoading: false,
     createdAt: new Date().toISOString(),
   };
 
-  // If YouTube URL, prioritize real high-resolution YouTube thumbnail directly
+  // If YouTube URL, prioritize real high-resolution YouTube thumbnail directly without network scraping
   if (nativeYtImage) {
     return {
       ...fallbackData,
@@ -356,177 +370,6 @@ export async function fetchLinkMetadata(rawUrl) {
     };
   }
 
-  // 1. TikTok Handler (first tries serverless /api/tiktok, then oEmbed)
-  if (category === 'tiktok' || domain.includes('tiktok.com')) {
-    // Try serverless API first
-    try {
-      const apiRes = await fetch(`/api/tiktok?url=${encodeURIComponent(url)}`);
-      if (apiRes.ok) {
-        const apiData = await apiRes.json();
-        if (!apiData.error && apiData.title) {
-          return {
-            ...fallbackData,
-            title: apiData.title,
-            description: apiData.description || fallbackData.description,
-            image: apiData.image || fallbackData.image,
-          };
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    // Direct oEmbed fallback
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-      const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
-      const response = await fetch(oembedUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data) {
-          const cardTitle = data.title && data.title.trim() ? data.title.trim() : 'TikTok Video';
-          const cardDesc = data.author_name ? `By @${data.author_name}` : fallbackData.description;
-          const cardImage = data.thumbnail_url || fallbackData.image;
-
-          return {
-            ...fallbackData,
-            title: cardTitle,
-            description: cardDesc,
-            image: cardImage,
-            favicon: fallbackData.favicon,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn(`TikTok oEmbed fetch failed for ${url}:`, err.message);
-    }
-
-    return {
-      ...fallbackData,
-      title: 'TikTok Video',
-    };
-  }
-
-  // 2. Shopee Handler (first tries serverless /api/shopee, then Microlink + slug parser)
-  if (category === 'shopee' || domain.includes('shopee.') || domain.includes('shp.ee')) {
-    const directSlugTitle = parseShopeeSlugTitle(url);
-
-    // Try serverless API first
-    try {
-      const apiRes = await fetch(`/api/shopee?url=${encodeURIComponent(url)}`);
-      if (apiRes.ok) {
-        const apiData = await apiRes.json();
-        if (!apiData.error && (apiData.image || apiData.title)) {
-          return {
-            ...fallbackData,
-            title: apiData.title || directSlugTitle || 'Shopee Product',
-            description: apiData.description || url,
-            image: apiData.image || fallbackData.image,
-          };
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    // Direct Microlink fallback
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-      const microlinkUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}&followRedirects=true&screenshot=false&meta=true&video=false`;
-      const response = await fetch(microlinkUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const json = await response.json();
-        if (json.status === 'success' && json.data) {
-          const resolvedUrl = json.data.url || url;
-          const rawTitle = json.data.title || '';
-          const imageUrl = json.data.image?.url || '';
-
-          let productTitle = '';
-          if (rawTitle && !isGenericShopeeTitle(rawTitle)) {
-            productTitle = rawTitle;
-          } else {
-            const slugTitle = parseShopeeSlugTitle(resolvedUrl) || directSlugTitle;
-            if (slugTitle) {
-              productTitle = slugTitle;
-            }
-          }
-
-          const productImage = (imageUrl && imageUrl.includes('susercontent.com'))
-            ? imageUrl
-            : fallbackData.image;
-
-          return {
-            ...fallbackData,
-            title: productTitle || directSlugTitle || 'Shopee Product',
-            description: json.data.description || resolvedUrl,
-            image: productImage,
-            favicon: json.data.logo?.url || fallbackData.favicon,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn(`Shopee metadata fetch failed for ${url}:`, err.message);
-    }
-
-    return {
-      ...fallbackData,
-      title: directSlugTitle || 'Shopee Product',
-      description: url,
-      image: fallbackData.image,
-    };
-  }
-
-  // CHANGED: General fallback flow using Microlink with an updated 8 second timeout.
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const apiUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=false&meta=true`;
-    const response = await fetch(apiUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      return fallbackData;
-    }
-
-    const json = await response.json();
-    if (json.status === 'success' && json.data) {
-      let { title, description, image, logo, publisher } = json.data;
-
-      // Anti-Bot Challenge / Captcha Interception Filter:
-      if (isBotChallenge(title, description)) {
-        console.warn(`Detected anti-bot security challenge from ${domain}. Using clean platform fallback.`);
-        title = `${fallbackTitle} (Protected Link)`;
-        description = `Direct link to ${domain}`;
-        image = null;
-      }
-
-      const finalImage = nativeYtImage || image?.url || null;
-
-      return {
-        id: fallbackData.id,
-        url,
-        domain: publisher || domain,
-        category: category,
-        title: title || fallbackTitle,
-        description: description || `Bookmarks on ${domain}`,
-        image: finalImage,
-        favicon: logo?.url || favicon,
-        fallbackGradient: getDomainGradient(domain),
-        createdAt: fallbackData.createdAt,
-      };
-    }
-  } catch (err) {
-    console.warn(`Error retrieving Open Graph metadata for ${url}:`, err.message);
-  }
-
   return fallbackData;
 }
+
