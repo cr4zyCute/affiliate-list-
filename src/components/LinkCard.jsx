@@ -205,6 +205,11 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
 
   const effectiveFavicon = isShopee ? '/shopee-logo.png' : favicon;
 
+  // Determine active action visual feedback state
+  const isRightSwipe = offsetX > 0;
+  const isLeftSwipe = offsetX < 0;
+  const isThresholdMet = Math.abs(offsetX) >= SWIPE_THRESHOLD;
+
   // Ignore generic automated placeholders as description
   const isGenericDesc =
     !description ||
@@ -216,8 +221,6 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     description === 'Lazada Product';
 
   const cleanDescription = isGenericDesc ? null : description;
-
-  const hasImage = Boolean(image && !imageFailed);
 
   return (
     <div className="swipe-card-container">
@@ -267,25 +270,39 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
         title={`Open ${title || domain} (Swipe right to edit, swipe left to delete)`}
         aria-label={`Bookmark: ${title || domain}. Swipe right to edit, swipe left to delete.`}
       >
-        {/* Visual Preview / Thumbnail Area (Only shown when image exists or loading) */}
-        {(isLoading || hasImage) && (
-          <div className="card-preview-area">
-            {isLoading ? (
-              <div className="preview-loading-box">
-                <Loader2 size={24} className="spinner text-accent" />
-                <span className="loading-badge-text">Loading...</span>
-              </div>
-            ) : (
-              <img
-                src={image}
-                alt={`Preview of ${title || domain}`}
-                className="preview-image"
-                loading="lazy"
-                onError={() => setImageFailed(true)}
-              />
-            )}
-          </div>
-        )}
+        {/* Visual Preview / Thumbnail Area */}
+        <div className="card-preview-area">
+          {isLoading ? (
+            <div className="preview-loading-box">
+              <Loader2 size={24} className="spinner text-accent" />
+              <span className="loading-badge-text">Loading...</span>
+            </div>
+          ) : image && !imageFailed ? (
+            <img
+              src={image}
+              alt={`Preview of ${title || domain}`}
+              className="preview-image"
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <div className="preview-fallback">
+              {effectiveFavicon ? (
+                <img
+                  src={effectiveFavicon}
+                  alt=""
+                  className="fallback-favicon"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <span className="fallback-monogram">{domainInitial}</span>
+              )}
+              <span className="fallback-badge-text">{domain}</span>
+            </div>
+          )}
+        </div>
 
         {/* Main Content Info */}
         <div className="card-content-area">
