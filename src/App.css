@@ -972,6 +972,16 @@
   color: var(--text-secondary);
 }
 
+.card-action-btn.btn-toggle-done {
+  height: 42px;
+  min-height: 42px;
+  padding: 0 0.85rem;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
 .card-action-btn:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
@@ -986,6 +996,80 @@
 .card-action-btn.copied {
   color: #10B981;
   border-color: #10B981;
+}
+
+.card-action-btn.btn-toggle-done:hover {
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
+.card-action-btn.btn-toggle-done.is-done {
+  background-color: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10B981;
+}
+
+.card-action-btn.btn-toggle-done.is-done:hover {
+  background-color: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #EF4444;
+}
+
+.toggle-done-icon {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.card-action-btn.btn-toggle-done:hover .toggle-done-icon {
+  transform: scale(1.1);
+}
+
+.done-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #10B981;
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.02em;
+}
+
+.done-status-icon {
+  flex-shrink: 0;
+}
+
+/* Completed Card Styling */
+.link-card.is-done {
+  background-color: var(--card-background);
+  border-color: var(--border-color);
+}
+
+.link-card.is-done .card-title {
+  color: var(--text-secondary);
+}
+
+.link-card.is-done .preview-image {
+  opacity: 0.82;
+  filter: saturate(0.85);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.link-card.is-done:hover .preview-image {
+  opacity: 0.95;
+  filter: saturate(1);
+}
+
+.card-timestamp-done {
+  color: #10B981 !important;
+  font-weight: 500;
+}
+
+.timestamp-done-icon {
+  flex-shrink: 0;
 }
 
 /* Card Titles & Text */
@@ -1549,6 +1633,14 @@
     height: 40px;
     min-width: 40px;
     min-height: 40px;
+  }
+
+  .card-action-btn.btn-toggle-done {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 0.65rem;
+    font-size: 0.75rem;
+    gap: 0.35rem;
   }
 
   .card-url-link {

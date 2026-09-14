@@ -25,19 +25,36 @@ function getTursoClient() {
  */
 async function ensureTable(client) {
   if (!initPromise) {
-    initPromise = client.execute(`
-      CREATE TABLE IF NOT EXISTS links (
-        id TEXT PRIMARY KEY,
-        url TEXT NOT NULL,
-        domain TEXT,
-        category TEXT,
-        title TEXT,
-        description TEXT,
-        image TEXT,
-        favicon TEXT,
-        created_at TEXT
-      );
-    `).catch((err) => {
+    initPromise = (async () => {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS links (
+          id TEXT PRIMARY KEY,
+          url TEXT NOT NULL,
+          domain TEXT,
+          category TEXT,
+          title TEXT,
+          description TEXT,
+          image TEXT,
+          favicon TEXT,
+          created_at TEXT,
+          status TEXT DEFAULT 'active',
+          completed_at TEXT
+        );
+      `);
+
+      // Seamless migration for existing tables that may lack status or completed_at
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN status TEXT DEFAULT 'active';`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN completed_at TEXT;`);
+      } catch {
+        // column may already exist
+      }
+    })().catch((err) => {
       console.warn('Table auto-init notice:', err.message || err);
       // Reset so next query can retry if needed
       initPromise = null;
@@ -60,7 +77,7 @@ export async function getAllLinks() {
     await ensureTable(client);
 
     const result = await client.execute({
-      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at FROM links ORDER BY created_at DESC',
+      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at FROM links ORDER BY created_at DESC',
       args: [],
     });
 
@@ -80,6 +97,8 @@ export async function getAllLinks() {
         image: row.image ? String(row.image) : null,
         favicon: String(row.favicon || ''),
         createdAt: String(row.created_at || new Date().toISOString()),
+        status: row.status === 'done' ? 'done' : 'active',
+        completedAt: row.completed_at ? String(row.completed_at) : null,
         isLoading: false,
       };
     });
@@ -130,10 +149,12 @@ export async function saveLink(link) {
     const truncatedDescription = link.description ? String(link.description).slice(0, 500) : '';
     const truncatedImage = link.image ? String(link.image).slice(0, 1000) : null;
     const createdAt = link.createdAt || new Date().toISOString();
+    const status = link.status === 'done' ? 'done' : 'active';
+    const completedAt = link.completedAt || null;
 
     await client.execute({
-      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               url = excluded.url,
               domain = excluded.domain,
@@ -142,7 +163,9 @@ export async function saveLink(link) {
               description = excluded.description,
               image = excluded.image,
               favicon = excluded.favicon,
-              created_at = excluded.created_at`,
+              created_at = excluded.created_at,
+              status = excluded.status,
+              completed_at = excluded.completed_at`,
       args: [
         link.id,
         link.url,
@@ -153,6 +176,8 @@ export async function saveLink(link) {
         truncatedImage,
         link.favicon || '',
         createdAt,
+        status,
+        completedAt,
       ],
     });
 
@@ -220,3 +245,28 @@ export async function updateLink(id, { title, description, image, category }) {
     throw error;
   }
 }
+
+/**
+ * Update the completion status and timestamp of a link in Turso.
+ */
+export async function updateLinkStatus(id, status, completedAt) {
+  const client = getTursoClient();
+  if (!client) {
+    throw new Error('Turso credentials are not configured in environment variables.');
+  }
+
+  try {
+    await ensureTable(client);
+
+    await client.execute({
+      sql: 'UPDATE links SET status = ?, completed_at = ? WHERE id = ?',
+      args: [status, completedAt || null, id],
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Turso [updateLinkStatus] error:', error);
+    throw error;
+  }
+}
+

@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
-import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2 } from 'lucide-react';
-import { formatAddedTimestamp } from '../services/dateService';
+import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2 } from 'lucide-react';
+import { formatAddedTimestamp, formatCompletedTimestamp } from '../services/dateService';
 
 const SWIPE_THRESHOLD = 75; // px distance to activate swipe action
 const MAX_SWIPE_DISTANCE = 130; // max translation clamp
 
-export function LinkCard({ link, onDelete, onCopy, onEdit }) {
+export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [offsetX, setOffsetX] = useState(0);
@@ -21,6 +21,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
   const didSwipeRef = useRef(false);
 
   const {
+    id,
     url,
     title,
     domain,
@@ -30,15 +31,19 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     favicon,
     isLoading,
     createdAt,
+    status,
+    completedAt,
   } = link;
+
+  const isDone = status === 'done';
 
   // Modern Universal Pointer Events for Smooth Swiping
   const handlePointerDown = (e) => {
     // Only primary button (left-click or touch)
     if (e.button !== undefined && e.button !== 0) return;
 
-    // Ignore if target is copy button or internal action
-    if (e.target.closest('.btn-copy')) return;
+    // Ignore if target is copy button or done toggle button
+    if (e.target.closest('.btn-copy') || e.target.closest('.btn-toggle-done')) return;
 
     startPosRef.current = { x: e.clientX, y: e.clientY };
     gestureRef.current = {
@@ -182,6 +187,11 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleToggleDoneClick = (e) => {
+    e.stopPropagation();
+    onToggleDone && onToggleDone(id);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -192,11 +202,15 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     } else if (e.key === 'e' || e.key === 'E') {
       e.preventDefault();
       onEdit && onEdit(link);
+    } else if (e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      onToggleDone && onToggleDone(id);
     }
   };
 
   const domainInitial = domain ? domain.replace(/^https?:\/\//, '').charAt(0).toUpperCase() : 'L';
   const timestampText = formatAddedTimestamp(createdAt);
+  const completedTimestampText = formatCompletedTimestamp(completedAt);
 
   const isShopee =
     category === 'shopee' ||
@@ -254,7 +268,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
       <article
         className={`link-card animate-card-in ${isLoading ? 'is-loading-card' : ''} ${
           isDragging ? 'is-swiping' : ''
-        }`}
+        } ${isDone ? 'is-done' : ''}`}
         style={{
           transform: `translate3d(${offsetX}px, 0, 0)`,
           transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.25, 1)',
@@ -268,7 +282,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
         tabIndex={0}
         onKeyDown={handleKeyDown}
         title={`Open ${title || domain} (Swipe right to edit, swipe left to delete)`}
-        aria-label={`Bookmark: ${title || domain}. Swipe right to edit, swipe left to delete.`}
+        aria-label={`Bookmark: ${title || domain}. ${isDone ? 'Status: Done.' : 'Status: Active.'} Swipe right to edit, swipe left to delete.`}
       >
         {/* Visual Preview / Thumbnail Area */}
         <div className="card-preview-area">
@@ -322,9 +336,27 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
                 <span className="domain-text">{domain}</span>
                 {isLoading && <span className="loading-pulse-pill">Loading</span>}
               </div>
+
+              {isDone && (
+                <span className="done-status-pill" title={`Completed on ${completedTimestampText}`}>
+                  <Check size={11} className="done-status-icon" />
+                  Done
+                </span>
+              )}
             </div>
 
             <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className={`card-action-btn btn-toggle-done ${isDone ? 'is-done' : ''}`}
+                onClick={handleToggleDoneClick}
+                title={isDone ? 'Mark as Not Done' : 'Mark as Done'}
+                aria-label={isDone ? 'Mark as Not Done' : 'Mark as Done'}
+              >
+                <CheckCircle2 size={16} className={`toggle-done-icon ${isDone ? 'icon-done' : 'icon-active'}`} />
+                <span className="btn-action-label">{isDone ? 'Mark as Not Done' : 'Mark as Done'}</span>
+              </button>
+
               <button
                 type="button"
                 className={`card-action-btn btn-copy ${copied ? 'copied' : ''}`}
@@ -358,12 +390,17 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
             )}
 
             <div className="card-footer-meta">
-              {timestampText && (
+              {isDone && completedTimestampText ? (
+                <span className="card-timestamp card-timestamp-done" title={`Completed: ${completedAt}`}>
+                  <Check size={12} className="timestamp-done-icon text-success" />
+                  <span>{completedTimestampText}</span>
+                </span>
+              ) : timestampText ? (
                 <span className="card-timestamp" title={`Created: ${createdAt}`}>
                   <Clock size={12} className="timestamp-icon" />
                   <span>{timestampText}</span>
                 </span>
-              )}
+              ) : null}
               <span className="external-indicator">
                 <ExternalLink size={13} />
               </span>
@@ -374,3 +411,4 @@ export function LinkCard({ link, onDelete, onCopy, onEdit }) {
     </div>
   );
 }
+

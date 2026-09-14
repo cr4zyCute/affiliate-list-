@@ -296,6 +296,8 @@ export function createOptimisticLink(rawUrl) {
     image: nativeYtImage || null,
     favicon,
     fallbackGradient: getDomainGradient(domain),
+    status: 'active',
+    completedAt: null,
     isLoading: false,
     createdAt: new Date().toISOString(),
   };
@@ -342,6 +344,8 @@ export async function fetchLinkMetadata(rawUrl) {
       image: null,
       favicon,
       fallbackGradient: getDomainGradient(domain),
+      status: 'active',
+      completedAt: null,
       isLoading: false,
       createdAt: new Date().toISOString(),
     };
@@ -358,6 +362,8 @@ export async function fetchLinkMetadata(rawUrl) {
     image: nativeYtImage || null,
     favicon,
     fallbackGradient: getDomainGradient(domain),
+    status: 'active',
+    completedAt: null,
     isLoading: false,
     createdAt: new Date().toISOString(),
   };

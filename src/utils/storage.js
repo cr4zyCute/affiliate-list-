@@ -17,12 +17,14 @@ export function getCachedLinks() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    // Ensure all cached links have category defined
+    // Ensure all cached links have category defined and normalize status/completedAt
     return parsed.map((item) => {
       const autoCategory = detectCategory(item.url);
       return {
         ...item,
         category: item.category && item.category !== 'other' ? item.category : autoCategory,
+        status: item.status === 'done' ? 'done' : 'active',
+        completedAt: item.completedAt || null,
       };
     });
   } catch (e) {

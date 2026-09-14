@@ -72,6 +72,26 @@ export function formatAddedTimestamp(dateIso) {
 }
 
 /**
+ * Formats completion timestamp:
+ * e.g. "Done · Sep 14, 2026 at 11:42 PM"
+ */
+export function formatCompletedTimestamp(dateIso) {
+  if (!dateIso) return '';
+  const d = new Date(dateIso);
+  if (isNaN(d.getTime())) return '';
+
+  const datePart = d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const timePart = formatTime(d);
+
+  return `Done · ${datePart} at ${timePart}`;
+}
+
+/**
  * Retrieves the header information for a date group in the timeline:
  * - Today: { primary: "Today", secondary: "September 14, 2026" }
  * - Yesterday: { primary: "Yesterday", secondary: "September 13, 2026" }

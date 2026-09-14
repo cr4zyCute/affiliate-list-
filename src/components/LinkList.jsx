@@ -7,7 +7,7 @@ import { DateGroup } from './DateGroup';
 import { EmptyState } from './EmptyState';
 import { filterLinksByDate, groupLinksByDate } from '../services/dateService';
 
-export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink }) {
+export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink, onToggleDone }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
@@ -123,6 +123,7 @@ export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink }) {
               onDeleteLink={onDeleteLink}
               onCopyLink={onCopyLink}
               onEditLink={onEditLink}
+              onToggleDone={onToggleDone}
             />
           ))
         )}

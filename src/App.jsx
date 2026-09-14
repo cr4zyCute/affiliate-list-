@@ -6,15 +6,14 @@ import { Modal } from './components/Modal';
 import { EditModal } from './components/EditModal';
 import { Toast } from './components/Toast';
 import {
-  fetchLinkMetadata,
   createOptimisticLink,
-  detectCategory,
 } from './services/metadataService';
 import {
   getAllLinks,
   saveLink,
   deleteLink,
   updateLink,
+  updateLinkStatus,
   linkExists,
 } from './lib/db';
 import {
@@ -49,6 +48,8 @@ function haveLinksChanged(current, incoming) {
     if (cur.image !== inc.image) return true;
     if (cur.category !== inc.category) return true;
     if (cur.description !== inc.description) return true;
+    if (cur.status !== inc.status) return true;
+    if (cur.completedAt !== inc.completedAt) return true;
   }
   return false;
 }
@@ -358,6 +359,44 @@ export default function App() {
     }
   };
 
+  // Step 5.5: Toggle Done/Active Status Flow (Optimistic UI + Turso write)
+  const handleToggleDone = async (id) => {
+    const target = links.find((l) => l.id === id);
+    if (!target) return;
+
+    const isCurrentlyDone = target.status === 'done';
+    const nextStatus = isCurrentlyDone ? 'active' : 'done';
+    const nextCompletedAt = isCurrentlyDone ? null : new Date().toISOString();
+
+    const previousLinks = [...links];
+
+    // 1. Optimistic UI: update immediately
+    const updated = links.map((link) =>
+      link.id === id
+        ? { ...link, status: nextStatus, completedAt: nextCompletedAt }
+        : link
+    );
+    setLinks(updated);
+    setCachedLinks(updated);
+
+    if (nextStatus === 'done') {
+      showToast('Marked as done', 'success');
+    } else {
+      showToast('Marked as not done', 'info');
+    }
+
+    // 2. Call Turso updateLinkStatus
+    try {
+      await updateLinkStatus(id, nextStatus, nextCompletedAt);
+    } catch (err) {
+      console.error('Turso update status failed:', err);
+      // 3. Rollback UI on failure
+      setLinks(previousLinks);
+      setCachedLinks(previousLinks);
+      showToast('Status update failed — try again', 'error');
+    }
+  };
+
   const handleClearAll = async () => {
     const previousLinks = [...links];
     setLinks([]);
@@ -402,6 +441,7 @@ export default function App() {
             onDeleteLink={requestDeleteLink}
             onCopyLink={handleCopyLink}
             onEditLink={(link) => setEditingLink(link)}
+            onToggleDone={handleToggleDone}
           />
         </main>
 
