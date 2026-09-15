@@ -1,21 +1,42 @@
-import React, { useState, useRef } from 'react';
-import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw, MoreVertical, FileText, Sparkles } from 'lucide-react';
 import { formatAddedTimestamp, formatCompletedTimestamp } from '../services/dateService';
 import { getRandomCaption, getCaptionWithoutBuyHere } from '../data/captions';
 
 const SWIPE_THRESHOLD = 75; // px distance to activate swipe action
 const MAX_SWIPE_DISTANCE = 130; // max translation clamp
 
-export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
+export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddToCategory }) {
   const [imageFailed, setImageFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [offsetX, setOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
-  // Random caption paired with this link
-  const [selectedCaption, setSelectedCaption] = useState(() => getRandomCaption());
+  // Random or saved caption paired with this link
+  const [selectedCaption, setSelectedCaption] = useState(() => link.caption || getRandomCaption());
   const [copiedCaptionLink, setCopiedCaptionLink] = useState(false);
   const [copiedCaptionOnly, setCopiedCaptionOnly] = useState(false);
+
+  // Close dropdown menu on click outside or escape
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleOutsideClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') setIsMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isMenuOpen]);
 
   const startPosRef = useRef({ x: 0, y: 0 });
   const gestureRef = useRef({
@@ -48,10 +69,9 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
     // Only primary button (left-click or touch)
     if (e.button !== undefined && e.button !== 0) return;
 
-    // Ignore if target is copy button, done toggle button, caption section, or url row
+    // Ignore if target is inside quick actions, url row, or caption section
     if (
-      e.target.closest('.btn-copy') ||
-      e.target.closest('.btn-toggle-done') ||
+      e.target.closest('.card-quick-actions') ||
       e.target.closest('.card-url-row') ||
       e.target.closest('.card-caption-container')
     ) return;
@@ -382,36 +402,111 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
                 <span className="domain-text">{domain}</span>
                 {isLoading && <span className="loading-pulse-pill">Loading</span>}
               </div>
-
-              {isDone && (
-                <span className="done-status-pill" title={`Completed on ${completedTimestampText}`}>
-                  <Check size={11} className="done-status-icon" />
-                  Done
-                </span>
-              )}
             </div>
 
             <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
+              {/* 1. Mark as Done button (Icon Only) */}
               <button
                 type="button"
-                className={`card-action-btn btn-toggle-done ${isDone ? 'is-done' : ''}`}
+                className={`card-action-btn btn-action-icon btn-toggle-done ${isDone ? 'is-done' : ''}`}
                 onClick={handleToggleDoneClick}
                 title={isDone ? 'Mark as Not Done' : 'Mark as Done'}
                 aria-label={isDone ? 'Mark as Not Done' : 'Mark as Done'}
               >
                 <CheckCircle2 size={16} className={`toggle-done-icon ${isDone ? 'icon-done' : 'icon-active'}`} />
-                <span className="btn-action-label">{isDone ? 'Mark as Not Done' : 'Mark as Done'}</span>
               </button>
 
+              {/* 2. BUTTON 1 — COPY CAPTION + LINK (Sparkles Icon Only) */}
               <button
                 type="button"
-                className={`card-action-btn btn-copy ${copied ? 'copied' : ''}`}
+                className={`card-action-btn btn-action-icon btn-caption-link ${copiedCaptionLink ? 'is-copied copied' : ''}`}
+                onClick={handleCopyCaptionLink}
+                title={copiedCaptionLink ? 'Copied Caption + Link!' : 'Copy Caption (with "Buy Here 👇") + Link'}
+                aria-label="Copy caption with Buy Here and link"
+              >
+                {copiedCaptionLink ? <Check size={16} className="copy-icon-success text-success" /> : <Sparkles size={16} />}
+              </button>
+
+              {/* 3. BUTTON 2 — COPY CAPTION (NO "Buy Here 👇") + LINK (FileText Icon Only) */}
+              <button
+                type="button"
+                className={`card-action-btn btn-action-icon btn-caption-only ${copiedCaptionOnly ? 'is-copied copied' : ''}`}
+                onClick={handleCopyCaptionOnly}
+                title={copiedCaptionOnly ? 'Copied Caption (No CTA) + Link!' : 'Copy Caption (without "Buy Here 👇") + Link'}
+                aria-label="Copy caption without Buy Here and link"
+              >
+                {copiedCaptionOnly ? <Check size={16} className="copy-icon-success text-success" /> : <FileText size={16} />}
+              </button>
+
+              {/* 4. Copy Link URL Button (Copy Icon Only) */}
+              <button
+                type="button"
+                className={`card-action-btn btn-action-icon btn-copy ${copied ? 'copied' : ''}`}
                 onClick={handleCopyClick}
-                title={copied ? 'Copied to clipboard!' : 'Copy link URL'}
+                title={copied ? 'Copied URL to clipboard!' : 'Copy link URL'}
                 aria-label="Copy link URL"
               >
-                {copied ? <Check size={20} className="text-success" /> : <Copy size={20} />}
+                {copied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
               </button>
+
+              {/* 5. THREE-DOT (⋮) MENU FOR ADDING TO UA/WA/MA */}
+              <div className="caption-menu-wrapper" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`card-action-btn btn-action-icon btn-caption-menu-toggle ${isMenuOpen ? 'is-open' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen((prev) => !prev);
+                  }}
+                  title="Save this caption & link to a category (UA, WA, MA)"
+                  aria-label="Add to category menu"
+                  aria-haspopup="true"
+                  aria-expanded={isMenuOpen}
+                >
+                  <MoreVertical size={16} />
+                </button>
+
+                {isMenuOpen && (
+                  <div className="caption-dropdown-menu" onClick={(e) => e.stopPropagation()} role="menu">
+                    <button
+                      type="button"
+                      className="caption-dropdown-item"
+                      role="menuitem"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onAddToCategory && onAddToCategory(link, 'UA', selectedCaption);
+                      }}
+                    >
+                      <span>Add to <strong>UA</strong></span>
+                    </button>
+                    <button
+                      type="button"
+                      className="caption-dropdown-item"
+                      role="menuitem"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onAddToCategory && onAddToCategory(link, 'WA', selectedCaption);
+                      }}
+                    >
+                      <span>Add to <strong>WA</strong></span>
+                    </button>
+                    <button
+                      type="button"
+                      className="caption-dropdown-item"
+                      role="menuitem"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onAddToCategory && onAddToCategory(link, 'MA', selectedCaption);
+                      }}
+                    >
+                      <span>Add to <strong>MA</strong></span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -426,7 +521,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
             </span>
           </div>
 
-          {/* Random Caption Display & Two Independent Compact Copy Buttons */}
+          {/* Minimalist Caption Inspo Box */}
           <div className="card-caption-container" onClick={(e) => e.stopPropagation()}>
             <div className="card-caption-header">
               <span className="card-caption-label">Caption Inspo</span>
@@ -444,50 +539,6 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
 
             <div className="card-caption-preview" title={selectedCaption}>
               <p className="card-caption-quote">{selectedCaption}</p>
-            </div>
-
-            <div className="card-caption-buttons-row">
-              {/* BUTTON 1 — COPY CAPTION + LINK */}
-              <button
-                type="button"
-                className={`btn-caption-action btn-caption-link ${copiedCaptionLink ? 'is-copied' : ''}`}
-                onClick={handleCopyCaptionLink}
-                title="Copy caption with 'Buy Here 👇' and matching link together"
-                aria-label="Copy caption and link together"
-              >
-                {copiedCaptionLink ? (
-                  <>
-                    <Check size={13} className="copy-icon-success" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={13} />
-                    <span>Caption + Link</span>
-                  </>
-                )}
-              </button>
-
-              {/* BUTTON 2 — COPY CAPTION (NO "Buy Here 👇") + LINK */}
-              <button
-                type="button"
-                className={`btn-caption-action btn-caption-only ${copiedCaptionOnly ? 'is-copied' : ''}`}
-                onClick={handleCopyCaptionOnly}
-                title="Copy caption (without 'Buy Here 👇') and matching link together"
-                aria-label="Copy caption without Buy Here and link together"
-              >
-                {copiedCaptionOnly ? (
-                  <>
-                    <Check size={13} className="copy-icon-success" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={13} />
-                    <span>Caption (No CTA) + Link</span>
-                  </>
-                )}
-              </button>
             </div>
           </div>
 

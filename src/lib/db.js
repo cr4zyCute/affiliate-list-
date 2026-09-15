@@ -38,11 +38,13 @@ async function ensureTable(client) {
           favicon TEXT,
           created_at TEXT,
           status TEXT DEFAULT 'active',
-          completed_at TEXT
+          completed_at TEXT,
+          main_category TEXT DEFAULT 'UA',
+          caption TEXT
         );
       `);
 
-      // Seamless migration for existing tables that may lack status or completed_at
+      // Seamless migration for existing tables
       try {
         await client.execute(`ALTER TABLE links ADD COLUMN status TEXT DEFAULT 'active';`);
       } catch {
@@ -51,6 +53,18 @@ async function ensureTable(client) {
 
       try {
         await client.execute(`ALTER TABLE links ADD COLUMN completed_at TEXT;`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN main_category TEXT DEFAULT 'UA';`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN caption TEXT;`);
       } catch {
         // column may already exist
       }
@@ -77,7 +91,7 @@ export async function getAllLinks() {
     await ensureTable(client);
 
     const result = await client.execute({
-      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at FROM links ORDER BY created_at DESC',
+      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption FROM links ORDER BY created_at DESC',
       args: [],
     });
 
@@ -99,6 +113,8 @@ export async function getAllLinks() {
         createdAt: String(row.created_at || new Date().toISOString()),
         status: row.status === 'done' ? 'done' : 'active',
         completedAt: row.completed_at ? String(row.completed_at) : null,
+        mainCategory: row.main_category ? String(row.main_category) : 'UA',
+        caption: row.caption ? String(row.caption) : null,
         isLoading: false,
       };
     });
@@ -151,10 +167,12 @@ export async function saveLink(link) {
     const createdAt = link.createdAt || new Date().toISOString();
     const status = link.status === 'done' ? 'done' : 'active';
     const completedAt = link.completedAt || null;
+    const mainCategory = link.mainCategory || 'UA';
+    const caption = link.caption || null;
 
     await client.execute({
-      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               url = excluded.url,
               domain = excluded.domain,
@@ -165,7 +183,9 @@ export async function saveLink(link) {
               favicon = excluded.favicon,
               created_at = excluded.created_at,
               status = excluded.status,
-              completed_at = excluded.completed_at`,
+              completed_at = excluded.completed_at,
+              main_category = excluded.main_category,
+              caption = excluded.caption`,
       args: [
         link.id,
         link.url,
@@ -178,6 +198,8 @@ export async function saveLink(link) {
         createdAt,
         status,
         completedAt,
+        mainCategory,
+        caption,
       ],
     });
 

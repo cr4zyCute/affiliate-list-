@@ -17,7 +17,7 @@ export function getCachedLinks() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    // Ensure all cached links have category defined and normalize status/completedAt
+    // Ensure all cached links have category defined and normalize status/completedAt/mainCategory/caption
     return parsed.map((item) => {
       const autoCategory = detectCategory(item.url);
       return {
@@ -25,6 +25,8 @@ export function getCachedLinks() {
         category: item.category && item.category !== 'other' ? item.category : autoCategory,
         status: item.status === 'done' ? 'done' : 'active',
         completedAt: item.completedAt || null,
+        mainCategory: item.mainCategory || 'UA',
+        caption: item.caption || null,
       };
     });
   } catch (e) {

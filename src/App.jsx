@@ -50,13 +50,18 @@ function haveLinksChanged(current, incoming) {
     if (cur.description !== inc.description) return true;
     if (cur.status !== inc.status) return true;
     if (cur.completedAt !== inc.completedAt) return true;
+    if (cur.mainCategory !== inc.mainCategory) return true;
+    if (cur.caption !== inc.caption) return true;
   }
   return false;
 }
 
 export default function App() {
-  // CHANGED: Use localStorage only as the initial paint cache while Turso loads in the background
+  // Use localStorage only as the initial paint cache while Turso loads in the background
   const [links, setLinks] = useState(() => getCachedLinks());
+  const [activeMainCategory, setActiveMainCategory] = useState(() => {
+    return localStorage.getItem('linkvault_main_category') || 'UA';
+  });
   const [toast, setToast] = useState(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [deletingLink, setDeletingLink] = useState(null);
@@ -264,27 +269,29 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Step 5.2: Add Link Flow (Instant Link Addition + Turso write)
+  const handleSelectMainCategory = (cat) => {
+    setActiveMainCategory(cat);
+    localStorage.setItem('linkvault_main_category', cat);
+  };
+
+  // Step 5.2: Add Link Flow (Instant Link Addition + Turso write into active category)
   const handleAddLinks = async (urls) => {
     for (const url of urls) {
-      // 1. Check duplicate locally and in Turso
-      const isLocalDuplicate = links.some((l) => l.url.toLowerCase() === url.toLowerCase());
-      let isDbDuplicate = false;
-      try {
-        isDbDuplicate = await linkExists(url);
-      } catch {
-        isDbDuplicate = false;
-      }
+      // 1. Check duplicate locally within the active main category
+      const isLocalDuplicate = links.some(
+        (l) => (l.mainCategory || 'UA') === activeMainCategory && l.url.toLowerCase() === url.toLowerCase()
+      );
 
-      if (isLocalDuplicate || isDbDuplicate) {
-        showToast('Link already saved', 'warning');
+      if (isLocalDuplicate) {
+        showToast(`Link already in ${activeMainCategory}`, 'warning');
         continue;
       }
 
-      // 2. Create link immediately
+      // 2. Create link immediately associated with the active main category
       const item = createOptimisticLink(url);
       item.createdAt = new Date().toISOString();
       item.isLoading = false;
+      item.mainCategory = activeMainCategory; // automatically assigned to active UA/WA/MA category
 
       // 3. Add directly to state and local cache
       setLinks((prev) => {
@@ -296,11 +303,45 @@ export default function App() {
       // 4. Save to Turso
       try {
         await saveLink(item);
-        showToast(`Saved ${item.domain}`, 'success');
+        showToast(`Saved to ${activeMainCategory}`, 'success');
       } catch (dbError) {
         console.warn('Turso save failed, kept in local cache:', dbError);
-        showToast('Saved locally only — sync failed', 'warning');
+        showToast(`Saved to ${activeMainCategory} locally — sync failed`, 'warning');
       }
+    }
+  };
+
+  // Copy/Add an item and its caption to another main category (UA, WA, MA)
+  const handleAddToCategory = async (link, targetCategory, caption) => {
+    const isAlreadyInTarget = links.some(
+      (l) => (l.mainCategory || 'UA') === targetCategory && l.url.toLowerCase() === link.url.toLowerCase()
+    );
+
+    if (isAlreadyInTarget) {
+      showToast(`Already in ${targetCategory}`, 'warning');
+      return;
+    }
+
+    const newItem = {
+      ...link,
+      id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      mainCategory: targetCategory,
+      caption: caption || link.caption || null,
+      createdAt: new Date().toISOString(),
+    };
+
+    setLinks((prev) => {
+      const next = [newItem, ...prev];
+      setCachedLinks(next);
+      return next;
+    });
+
+    try {
+      await saveLink(newItem);
+      showToast(`Added to ${targetCategory}`, 'success');
+    } catch (err) {
+      console.warn('Turso save failed for add to category:', err);
+      showToast(`Added to ${targetCategory} locally`, 'info');
     }
   };
 
@@ -418,16 +459,19 @@ export default function App() {
     showToast('URL copied to clipboard', 'success');
   };
 
-  const existingUrls = links.map((l) => l.url);
+  const visibleLinks = links.filter((l) => (l.mainCategory || 'UA') === activeMainCategory);
+  const existingUrls = visibleLinks.map((l) => l.url);
 
   return (
     <div className="app-layout">
       <div className="app-container">
         <Header
-          totalLinks={links.length}
+          totalLinks={visibleLinks.length}
           onClearAll={() => setIsClearModalOpen(true)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          activeMainCategory={activeMainCategory}
+          onSelectMainCategory={handleSelectMainCategory}
         />
 
         <main className="app-main">
@@ -437,11 +481,12 @@ export default function App() {
           />
 
           <LinkList
-            links={links}
+            links={visibleLinks}
             onDeleteLink={requestDeleteLink}
             onCopyLink={handleCopyLink}
             onEditLink={(link) => setEditingLink(link)}
             onToggleDone={handleToggleDone}
+            onAddToCategory={handleAddToCategory}
           />
         </main>
 

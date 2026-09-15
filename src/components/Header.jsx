@@ -1,7 +1,14 @@
 import React from 'react';
 import { BookmarkCheck, Link as LinkIcon, Trash2, Moon, Sun } from 'lucide-react';
 
-export function Header({ totalLinks, onClearAll, theme = 'light', onToggleTheme }) {
+export function Header({
+  totalLinks,
+  onClearAll,
+  theme = 'light',
+  onToggleTheme,
+  activeMainCategory = 'UA',
+  onSelectMainCategory,
+}) {
   return (
     <header className="app-header">
       <div className="header-top">
@@ -25,10 +32,28 @@ export function Header({ totalLinks, onClearAll, theme = 'light', onToggleTheme 
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
 
-          <div className="stats-pill" title="Total saved links">
+          {/* Main Categories (UA, WA, MA) for Caption/Link List System */}
+          <div className="main-category-group" role="tablist" aria-label="Main Categories">
+            {['UA', 'WA', 'MA'].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                role="tab"
+                aria-selected={activeMainCategory === cat}
+                className={`btn-main-cat ${activeMainCategory === cat ? 'is-active' : ''}`}
+                onClick={() => onSelectMainCategory && onSelectMainCategory(cat)}
+                title={`Switch to ${cat} list`}
+                aria-label={`${cat} category list`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="stats-pill" title={`Total saved links in ${activeMainCategory}`}>
             <BookmarkCheck size={16} />
             <span>
-              <strong>{totalLinks}</strong> {totalLinks === 1 ? '' : ''}
+              <strong>{totalLinks}</strong>
             </span>
           </div>
 
