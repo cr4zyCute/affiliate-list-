@@ -1086,26 +1086,39 @@
 
 .card-url-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   min-width: 0;
+  width: 100%;
 }
 
 .card-url-link {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.35rem;
   font-size: 0.75rem;
   color: var(--text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 100%;
   max-width: 100%;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.4;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.card-url-link svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .card-url-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.4;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .card-footer-row {
@@ -1618,7 +1631,15 @@
 
   .card-title {
     font-size: 0.875rem;
-    line-height: 1.3;
+    line-height: 1.35;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .card-description {
@@ -1628,24 +1649,35 @@
     line-clamp: 2;
   }
 
-  .card-action-btn.btn-copy {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
+  .btn-toggle-done .btn-action-label {
+    display: none;
   }
 
   .card-action-btn.btn-toggle-done {
-    height: 40px;
-    min-height: 40px;
-    padding: 0 0.65rem;
-    font-size: 0.75rem;
-    gap: 0.35rem;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .card-action-btn.btn-copy {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    flex-shrink: 0;
   }
 
   .card-url-link {
-    max-width: 55%;
-    font-size: 0.7rem;
+    width: 100%;
+    max-width: 100%;
+    font-size: 0.75rem;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    line-height: 1.4;
   }
 
   .card-timestamp {
@@ -1707,7 +1739,11 @@
   }
 
   .card-url-link {
-    max-width: 45%;
+    width: 100%;
+    max-width: 100%;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .btn-clipboard-paste {

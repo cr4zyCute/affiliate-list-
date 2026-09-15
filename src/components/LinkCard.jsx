@@ -42,8 +42,8 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
     // Only primary button (left-click or touch)
     if (e.button !== undefined && e.button !== 0) return;
 
-    // Ignore if target is copy button or done toggle button
-    if (e.target.closest('.btn-copy') || e.target.closest('.btn-toggle-done')) return;
+    // Ignore if target is copy button, done toggle button, or url row (allowing direct text selection and interaction)
+    if (e.target.closest('.btn-copy') || e.target.closest('.btn-toggle-done') || e.target.closest('.card-url-row')) return;
 
     startPosRef.current = { x: e.clientX, y: e.clientY };
     gestureRef.current = {
@@ -106,7 +106,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
   };
 
   const handlePointerUp = (e) => {
-    if (!gestureRef.current.active) return;
+    if (!gestureRef.current.acative) return;
 
     const currentOffset = offsetX;
     const isHorizontal = gestureRef.current.direction === 'horizontal';
