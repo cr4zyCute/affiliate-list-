@@ -1,29 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Link as LinkIcon, AlertCircle, Clipboard, Check } from 'lucide-react';
+import { Plus, Link as LinkIcon, AlertCircle, Check, Type } from 'lucide-react';
 import { isValidUrl, normalizeUrl, extractUrlsFromText } from '../services/metadataService';
 
 export function LinkInput({ onAddLinks, existingUrls = [] }) {
   const [inputValue, setInputValue] = useState('');
+  const [titleValue, setTitleValue] = useState('');
   const [error, setError] = useState('');
   const [justAdded, setJustAdded] = useState(false);
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
     if (error) setError('');
-  };
-
-  const handlePasteClipboard = async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-          setInputValue(text.trim());
-          if (error) setError('');
-        }
-      }
-    } catch {
-      // Clipboard access might be blocked by browser permissions, ignore gracefully
-    }
   };
 
   const handleSubmit = (e) => {
@@ -40,7 +27,7 @@ export function LinkInput({ onAddLinks, existingUrls = [] }) {
 
     if (detectedUrls.length === 0) {
       if (!isValidUrl(trimmed)) {
-        setError('Please enter a valid website link (e.g. https://github.com, tiktok.com, or youtube.com).');
+        setError('Please enter a valid website link (e.g. https://github.com, tiktok.com, or amazon.com).');
         return;
       }
       detectedUrls.push(normalizeUrl(trimmed));
@@ -56,47 +43,67 @@ export function LinkInput({ onAddLinks, existingUrls = [] }) {
       return;
     }
 
-    // Clear input immediately so user can paste the next link right away!
+    const customTitle = titleValue.trim() || undefined;
+
+    // Clear inputs immediately so user can paste the next link right away!
     setInputValue('');
+    setTitleValue('');
     setError('');
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1200);
 
     // Instant addition to list
-    onAddLinks(newUrls);
+    const itemsToAdd = newUrls.map((url) => ({
+      url,
+      title: customTitle,
+    }));
+
+    onAddLinks(itemsToAdd);
   };
 
   return (
     <div className="link-input-section">
       <form onSubmit={handleSubmit} className="link-input-card">
-        <div className={`input-field-wrapper ${error ? 'has-error' : ''}`}>
-          <div className="input-icon-prefix">
-            <LinkIcon size={20} className="text-muted" />
+        <div className={`input-field-wrapper dual-input-wrapper ${error ? 'has-error' : ''}`}>
+          {/* Link URL Input Field */}
+          <div className="input-field-subgroup input-subgroup-url">
+            <div className="input-icon-prefix">
+              <LinkIcon size={18} className="text-muted" />
+            </div>
+
+            <input
+              id="link-url-input"
+              type="text"
+              className="link-input"
+              placeholder="Paste a link here..."
+              value={inputValue}
+              onChange={handleInputChange}
+              autoComplete="off"
+              spellCheck="false"
+            />
           </div>
 
-          <input
-            id="link-url-input"
-            type="text"
-            className="link-input"
-            placeholder="Paste a link here..."
-            value={inputValue}
-            onChange={handleInputChange}
-            autoComplete="off"
-            spellCheck="false"
-          />
+          <div className="input-field-divider" />
 
-          {!inputValue && (
-            <button
-              type="button"
-              className="btn-clipboard-paste"
-              onClick={handlePasteClipboard}
-              title="Paste from clipboard"
-            >
-              <Clipboard size={15} />
-              <span className="hide-mobile">Paste</span>
-            </button>
-          )}
+          {/* Title Input Field */}
+          <div className="input-field-subgroup input-subgroup-title">
+            <div className="input-icon-prefix">
+              <Type size={18} className="text-muted" />
+            </div>
 
+            <input
+              id="link-title-input"
+              type="text"
+              className="link-input link-title-input"
+              placeholder="Paste or type title (optional)..."
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              autoComplete="off"
+              spellCheck="false"
+            />
+          </div>
+
+          {/* Submit Button */}
           <button
             id="add-link-btn"
             type="submit"
@@ -105,12 +112,12 @@ export function LinkInput({ onAddLinks, existingUrls = [] }) {
           >
             {justAdded ? (
               <>
-                <Check size={18} className="text-white" />
+                <Check size={16} className="text-white" />
                 <span>Added!</span>
               </>
             ) : (
               <>
-                <Plus size={18} />
+                <Plus size={16} />
                 <span>Add</span>
               </>
             )}

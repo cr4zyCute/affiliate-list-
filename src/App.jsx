@@ -275,8 +275,11 @@ export default function App() {
   };
 
   // Step 5.2: Add Link Flow (Instant Link Addition + Turso write into active category)
-  const handleAddLinks = async (urls) => {
-    for (const url of urls) {
+  const handleAddLinks = async (items) => {
+    for (const entry of items) {
+      const url = typeof entry === 'string' ? entry : entry.url;
+      const customTitle = typeof entry === 'object' && entry.title ? entry.title.trim() : null;
+
       // 1. Check duplicate locally within the active main category
       const isLocalDuplicate = links.some(
         (l) => (l.mainCategory || 'UA') === activeMainCategory && l.url.toLowerCase() === url.toLowerCase()
@@ -289,6 +292,9 @@ export default function App() {
 
       // 2. Create link immediately associated with the active main category
       const item = createOptimisticLink(url);
+      if (customTitle) {
+        item.title = customTitle;
+      }
       item.createdAt = new Date().toISOString();
       item.isLoading = false;
       item.mainCategory = activeMainCategory; // automatically assigned to active UA/WA/MA category

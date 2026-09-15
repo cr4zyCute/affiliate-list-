@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw, MoreVertical, FileText, Sparkles } from 'lucide-react';
+import { Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw, MoreVertical, FileText, Sparkles } from 'lucide-react';
 import { formatAddedTimestamp, formatCompletedTimestamp } from '../services/dateService';
 import { getRandomCaption, getCaptionWithoutBuyHere } from '../data/captions';
 
@@ -290,18 +290,6 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
   const isLeftSwipe = offsetX < 0;
   const isThresholdMet = Math.abs(offsetX) >= SWIPE_THRESHOLD;
 
-  // Ignore generic automated placeholders as description
-  const isGenericDesc =
-    !description ||
-    description.startsWith('Fetching ') ||
-    description === url ||
-    description.startsWith('Link saved from') ||
-    description === 'Shopee Product' ||
-    description === 'TikTok Video' ||
-    description === 'Lazada Product';
-
-  const cleanDescription = isGenericDesc ? null : description;
-
   return (
     <div className="swipe-card-container">
       {/* Background Swipe Action: EDIT (Left side revealed when swiping right) */}
@@ -402,6 +390,18 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
                 <span className="domain-text">{domain}</span>
                 {isLoading && <span className="loading-pulse-pill">Loading</span>}
               </div>
+
+              {isDone && completedTimestampText ? (
+                <span className="card-timestamp card-timestamp-done" title={`Completed: ${completedAt}`}>
+                  <Check size={12} className="timestamp-done-icon text-success" />
+                  <span>{completedTimestampText}</span>
+                </span>
+              ) : timestampText ? (
+                <span className="card-timestamp" title={`Created: ${createdAt}`}>
+                  <Clock size={12} className="timestamp-icon" />
+                  <span>{timestampText}</span>
+                </span>
+              ) : null}
             </div>
 
             <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
@@ -539,33 +539,6 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
 
             <div className="card-caption-preview" title={selectedCaption}>
               <p className="card-caption-quote">{selectedCaption}</p>
-            </div>
-          </div>
-
-          <div className="card-footer-row">
-            {cleanDescription ? (
-              <p className="card-description" title={cleanDescription}>
-                {cleanDescription}
-              </p>
-            ) : (
-              <span />
-            )}
-
-            <div className="card-footer-meta">
-              {isDone && completedTimestampText ? (
-                <span className="card-timestamp card-timestamp-done" title={`Completed: ${completedAt}`}>
-                  <Check size={12} className="timestamp-done-icon text-success" />
-                  <span>{completedTimestampText}</span>
-                </span>
-              ) : timestampText ? (
-                <span className="card-timestamp" title={`Created: ${createdAt}`}>
-                  <Clock size={12} className="timestamp-icon" />
-                  <span>{timestampText}</span>
-                </span>
-              ) : null}
-              <span className="external-indicator">
-                <ExternalLink size={13} />
-              </span>
             </div>
           </div>
         </div>
