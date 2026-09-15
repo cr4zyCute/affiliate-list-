@@ -106,7 +106,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
   };
 
   const handlePointerUp = (e) => {
-    if (!gestureRef.current.acative) return;
+    if (!gestureRef.current.active) return;
 
     const currentOffset = offsetX;
     const isHorizontal = gestureRef.current.direction === 'horizontal';
@@ -114,7 +114,9 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
     // Release pointer capture
     if (gestureRef.current.pointerId !== null) {
       try {
-        e.currentTarget.releasePointerCapture(gestureRef.current.pointerId);
+        if (e.currentTarget && typeof e.currentTarget.releasePointerCapture === 'function') {
+          e.currentTarget.releasePointerCapture(gestureRef.current.pointerId);
+        }
       } catch {
         // ignore
       }
@@ -153,7 +155,9 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
   const handlePointerCancel = (e) => {
     if (gestureRef.current.pointerId !== null) {
       try {
-        e.currentTarget.releasePointerCapture(gestureRef.current.pointerId);
+        if (e.currentTarget && typeof e.currentTarget.releasePointerCapture === 'function') {
+          e.currentTarget.releasePointerCapture(gestureRef.current.pointerId);
+        }
       } catch {
         // ignore
       }
