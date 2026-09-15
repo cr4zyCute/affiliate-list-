@@ -1121,6 +1121,129 @@
   -webkit-user-select: text;
 }
 
+/* ==========================================================================
+   Random Caption Box & Two Compact Copy Buttons (Linear / Minimalist Style)
+   ========================================================================== */
+.card-caption-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.7rem;
+  margin: 0.2rem 0;
+  cursor: default;
+  transition: border-color 0.15s ease;
+}
+
+.link-card:hover .card-caption-container {
+  border-color: var(--border-hover);
+}
+
+.card-caption-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.card-caption-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.btn-caption-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-caption-refresh:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.btn-caption-refresh:active .caption-refresh-icon {
+  transform: rotate(180deg);
+  transition: transform 0.25s ease;
+}
+
+.caption-refresh-icon {
+  flex-shrink: 0;
+}
+
+.card-caption-preview {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.card-caption-quote {
+  margin: 0;
+  font-weight: 450;
+  color: var(--text-primary);
+}
+
+.card-caption-buttons-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+/* Two Independent Compact Copy Buttons */
+.btn-caption-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-caption-action:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.btn-caption-action.is-copied {
+  color: #10B981;
+  border-color: rgba(16, 185, 129, 0.45);
+  background-color: rgba(16, 185, 129, 0.08);
+  font-weight: 600;
+}
+
+.copy-icon-success {
+  color: #10B981;
+  flex-shrink: 0;
+}
+
 .card-footer-row {
   display: flex;
   align-items: center;

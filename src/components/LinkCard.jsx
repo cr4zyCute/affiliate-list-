@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2 } from 'lucide-react';
+import { ExternalLink, Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw } from 'lucide-react';
 import { formatAddedTimestamp, formatCompletedTimestamp } from '../services/dateService';
+import { getRandomCaption, getCaptionWithoutBuyHere } from '../data/captions';
 
 const SWIPE_THRESHOLD = 75; // px distance to activate swipe action
 const MAX_SWIPE_DISTANCE = 130; // max translation clamp
@@ -10,6 +11,11 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
   const [copied, setCopied] = useState(false);
   const [offsetX, setOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Random caption paired with this link
+  const [selectedCaption, setSelectedCaption] = useState(() => getRandomCaption());
+  const [copiedCaptionLink, setCopiedCaptionLink] = useState(false);
+  const [copiedCaptionOnly, setCopiedCaptionOnly] = useState(false);
 
   const startPosRef = useRef({ x: 0, y: 0 });
   const gestureRef = useRef({
@@ -42,8 +48,13 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
     // Only primary button (left-click or touch)
     if (e.button !== undefined && e.button !== 0) return;
 
-    // Ignore if target is copy button, done toggle button, or url row (allowing direct text selection and interaction)
-    if (e.target.closest('.btn-copy') || e.target.closest('.btn-toggle-done') || e.target.closest('.card-url-row')) return;
+    // Ignore if target is copy button, done toggle button, caption section, or url row
+    if (
+      e.target.closest('.btn-copy') ||
+      e.target.closest('.btn-toggle-done') ||
+      e.target.closest('.card-url-row') ||
+      e.target.closest('.card-caption-container')
+    ) return;
 
     startPosRef.current = { x: e.clientX, y: e.clientY };
     gestureRef.current = {
@@ -189,6 +200,37 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
     setCopied(true);
     onCopy && onCopy(url);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRefreshCaption = (e) => {
+    e.stopPropagation();
+    setSelectedCaption(getRandomCaption());
+  };
+
+  // BUTTON 1 — COPY CAPTION + LINK
+  // [Selected caption including “Buy Here 👇”]
+  // [The corresponding link]
+  const handleCopyCaptionLink = (e) => {
+    e.stopPropagation();
+    const formatted = `${selectedCaption}\n${url}`;
+    navigator.clipboard.writeText(formatted);
+    setCopiedCaptionLink(true);
+    onCopy && onCopy(formatted);
+    setTimeout(() => setCopiedCaptionLink(false), 2000);
+  };
+
+  // BUTTON 2 — COPY CAPTION ONLY (WITHOUT "Buy Here 👇") + LINK
+  // Format:
+  // [Selected caption without “Buy Here 👇”]
+  // [The corresponding link]
+  const handleCopyCaptionOnly = (e) => {
+    e.stopPropagation();
+    const captionOnly = getCaptionWithoutBuyHere(selectedCaption);
+    const formatted = `${captionOnly}\n${url}`;
+    navigator.clipboard.writeText(formatted);
+    setCopiedCaptionOnly(true);
+    onCopy && onCopy(formatted);
+    setTimeout(() => setCopiedCaptionOnly(false), 2000);
   };
 
   const handleToggleDoneClick = (e) => {
@@ -382,6 +424,71 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone }) {
               <Globe size={13} />
               <span className="card-url-text">{url}</span>
             </span>
+          </div>
+
+          {/* Random Caption Display & Two Independent Compact Copy Buttons */}
+          <div className="card-caption-container" onClick={(e) => e.stopPropagation()}>
+            <div className="card-caption-header">
+              <span className="card-caption-label">Caption Inspo</span>
+              <button
+                type="button"
+                className="btn-caption-refresh"
+                onClick={handleRefreshCaption}
+                title="Randomly pick another caption"
+                aria-label="Randomly pick another caption"
+              >
+                <RefreshCw size={11} className="caption-refresh-icon" />
+                <span>Randomize</span>
+              </button>
+            </div>
+
+            <div className="card-caption-preview" title={selectedCaption}>
+              <p className="card-caption-quote">{selectedCaption}</p>
+            </div>
+
+            <div className="card-caption-buttons-row">
+              {/* BUTTON 1 — COPY CAPTION + LINK */}
+              <button
+                type="button"
+                className={`btn-caption-action btn-caption-link ${copiedCaptionLink ? 'is-copied' : ''}`}
+                onClick={handleCopyCaptionLink}
+                title="Copy caption with 'Buy Here 👇' and matching link together"
+                aria-label="Copy caption and link together"
+              >
+                {copiedCaptionLink ? (
+                  <>
+                    <Check size={13} className="copy-icon-success" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Caption + Link</span>
+                  </>
+                )}
+              </button>
+
+              {/* BUTTON 2 — COPY CAPTION (NO "Buy Here 👇") + LINK */}
+              <button
+                type="button"
+                className={`btn-caption-action btn-caption-only ${copiedCaptionOnly ? 'is-copied' : ''}`}
+                onClick={handleCopyCaptionOnly}
+                title="Copy caption (without 'Buy Here 👇') and matching link together"
+                aria-label="Copy caption without Buy Here and link together"
+              >
+                {copiedCaptionOnly ? (
+                  <>
+                    <Check size={13} className="copy-icon-success" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={13} />
+                    <span>Caption (No CTA) + Link</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="card-footer-row">
