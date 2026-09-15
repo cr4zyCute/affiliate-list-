@@ -218,7 +218,7 @@ export default function App() {
     }
   }, []);
 
-  // CHANGED: Extension pending queue sync on mount (without old local event listeners)
+  // Real-time Extension Save & Pending Queue Sync Engine
   useEffect(() => {
     const syncFromPending = async () => {
       if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
@@ -226,15 +226,19 @@ export default function App() {
           const pending = result.linkvault_pending || [];
           if (pending.length > 0) {
             const current = linksRef.current;
-            const existingUrls = new Set(current.map((l) => l.url.toLowerCase()));
-            const newLinks = pending.filter((l) => !existingUrls.has(l.url.toLowerCase()));
+            const existingUrls = new Set(current.map((l) => `${l.mainCategory || 'UA'}:${l.url.toLowerCase()}`));
+            const newLinks = pending.filter((l) => !existingUrls.has(`${l.mainCategory || 'UA'}:${l.url.toLowerCase()}`));
 
             if (newLinks.length > 0) {
-              const merged = [...newLinks, ...current];
+              const formattedLinks = newLinks.map((item) => ({
+                ...item,
+                mainCategory: item.mainCategory || activeMainCategory || 'UA',
+              }));
+              const merged = [...formattedLinks, ...current];
               setLinks(merged);
               setCachedLinks(merged);
 
-              for (const item of newLinks) {
+              for (const item of formattedLinks) {
                 try {
                   await saveLink(item);
                 } catch (e) {
@@ -249,8 +253,50 @@ export default function App() {
       }
     };
 
+    // 1. Initial sync from pending on mount
     syncFromPending();
-  }, []);
+
+    // 2. Real-time direct custom event listener from extension
+    const handleExtensionSave = async (event) => {
+      const item = event.detail || event.data;
+      if (!item || !item.url) return;
+
+      const targetCategory = item.mainCategory || activeMainCategory || 'UA';
+      const formattedItem = {
+        ...item,
+        mainCategory: targetCategory,
+      };
+
+      setLinks((prev) => {
+        const alreadyExists = prev.some(
+          (l) => (l.mainCategory || 'UA') === targetCategory && l.url.toLowerCase() === formattedItem.url.toLowerCase()
+        );
+        if (alreadyExists) return prev;
+        const next = [formattedItem, ...prev];
+        setCachedLinks(next);
+        return next;
+      });
+
+      try {
+        await saveLink(formattedItem);
+        showToast(`Saved to ${targetCategory}`, 'success');
+      } catch (err) {
+        console.warn('Turso save failed for extension link:', err);
+      }
+    };
+
+    window.addEventListener('linkvault_extension_save', handleExtensionSave);
+    window.addEventListener('linkvault_save_link', handleExtensionSave);
+    window.addEventListener('linkvault_sync_links', handleExtensionSave);
+    window.addEventListener('focus', syncFromPending);
+
+    return () => {
+      window.removeEventListener('linkvault_extension_save', handleExtensionSave);
+      window.removeEventListener('linkvault_save_link', handleExtensionSave);
+      window.removeEventListener('linkvault_sync_links', handleExtensionSave);
+      window.removeEventListener('focus', syncFromPending);
+    };
+  }, [activeMainCategory]);
 
   // Sync theme
   useEffect(() => {
@@ -461,8 +507,12 @@ export default function App() {
     }
   };
 
-  const handleCopyLink = () => {
-    showToast('URL copied to clipboard', 'success');
+  const handleCopyLink = (text, customWarning) => {
+    if (customWarning) {
+      showToast(customWarning, 'warning');
+      return;
+    }
+    showToast('Copied to clipboard', 'success');
   };
 
   const visibleLinks = links.filter((l) => (l.mainCategory || 'UA') === activeMainCategory);

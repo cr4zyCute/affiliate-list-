@@ -68,6 +68,18 @@ async function ensureTable(client) {
       } catch {
         // column may already exist
       }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN affiliate_url TEXT;`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN page_url TEXT;`);
+      } catch {
+        // column may already exist
+      }
     })().catch((err) => {
       console.warn('Table auto-init notice:', err.message || err);
       // Reset so next query can retry if needed
@@ -91,7 +103,7 @@ export async function getAllLinks() {
     await ensureTable(client);
 
     const result = await client.execute({
-      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption FROM links ORDER BY created_at DESC',
+      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url FROM links ORDER BY created_at DESC',
       args: [],
     });
 
@@ -115,6 +127,8 @@ export async function getAllLinks() {
         completedAt: row.completed_at ? String(row.completed_at) : null,
         mainCategory: row.main_category ? String(row.main_category) : 'UA',
         caption: row.caption ? String(row.caption) : null,
+        affiliateUrl: row.affiliate_url ? String(row.affiliate_url) : null,
+        pageUrl: row.page_url ? String(row.page_url) : null,
         isLoading: false,
       };
     });
@@ -169,10 +183,12 @@ export async function saveLink(link) {
     const completedAt = link.completedAt || null;
     const mainCategory = link.mainCategory || 'UA';
     const caption = link.caption || null;
+    const affiliateUrl = link.affiliateUrl ? String(link.affiliateUrl).trim() : null;
+    const pageUrl = link.pageUrl ? String(link.pageUrl).trim() : null;
 
     await client.execute({
-      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               url = excluded.url,
               domain = excluded.domain,
@@ -185,7 +201,9 @@ export async function saveLink(link) {
               status = excluded.status,
               completed_at = excluded.completed_at,
               main_category = excluded.main_category,
-              caption = excluded.caption`,
+              caption = excluded.caption,
+              affiliate_url = excluded.affiliate_url,
+              page_url = excluded.page_url`,
       args: [
         link.id,
         link.url,
@@ -200,6 +218,8 @@ export async function saveLink(link) {
         completedAt,
         mainCategory,
         caption,
+        affiliateUrl,
+        pageUrl,
       ],
     });
 
@@ -234,9 +254,9 @@ export async function deleteLink(id) {
 }
 
 /**
- * Update editable fields (title, description, image, category) of an existing link.
+ * Update editable fields (title, description, image, category, affiliateUrl, pageUrl) of an existing link.
  */
-export async function updateLink(id, { title, description, image, category }) {
+export async function updateLink(id, { title, description, image, category, affiliateUrl, pageUrl }) {
   const client = getTursoClient();
   if (!client) {
     throw new Error('Turso credentials are not configured in environment variables.');
@@ -248,18 +268,28 @@ export async function updateLink(id, { title, description, image, category }) {
     const truncatedTitle = title ? String(title).slice(0, 500) : '';
     const truncatedDescription = description ? String(description).slice(0, 500) : '';
     const truncatedImage = image ? String(image).slice(0, 1000) : null;
+    const cleanAffiliateUrl = affiliateUrl ? String(affiliateUrl).trim() : null;
+    const cleanPageUrl = pageUrl ? String(pageUrl).trim() : null;
 
-    if (category) {
-      await client.execute({
-        sql: 'UPDATE links SET title = ?, description = ?, image = ?, category = ? WHERE id = ?',
-        args: [truncatedTitle, truncatedDescription, truncatedImage, category, id],
-      });
-    } else {
-      await client.execute({
-        sql: 'UPDATE links SET title = ?, description = ?, image = ? WHERE id = ?',
-        args: [truncatedTitle, truncatedDescription, truncatedImage, id],
-      });
-    }
+    await client.execute({
+      sql: `UPDATE links SET 
+              title = ?, 
+              description = ?, 
+              image = ?, 
+              category = ?, 
+              affiliate_url = ?, 
+              page_url = ? 
+            WHERE id = ?`,
+      args: [
+        truncatedTitle, 
+        truncatedDescription, 
+        truncatedImage, 
+        category || 'other', 
+        cleanAffiliateUrl, 
+        cleanPageUrl, 
+        id
+      ],
+    });
 
     return true;
   } catch (error) {

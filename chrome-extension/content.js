@@ -186,6 +186,154 @@ function extractTikTok() {
   };
 }
 
+/**
+ * Extracts metadata from Lazada product pages.
+ */
+function extractLazada() {
+  const currentUrl = window.location.href;
+  const domain = window.location.hostname.replace(/^www\./, '');
+
+  let title = '';
+  const titleSelectors = [
+    'h1.pdp-mod-product-badge-title',
+    'h1.pdp-title',
+    '[class*="pdp-mod-product-badge-title"]',
+    'h1'
+  ];
+
+  for (const sel of titleSelectors) {
+    const el = document.querySelector(sel);
+    if (el && el.innerText && el.innerText.trim()) {
+      title = el.innerText.trim();
+      break;
+    }
+  }
+
+  if (!title) {
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle && ogTitle.content) title = ogTitle.content.trim();
+  }
+  if (!title) {
+    title = document.title ? document.title.replace(/\|\s*Lazada.*$/i, '').trim() : '';
+  }
+
+  let image = '';
+  const imgSelectors = [
+    'img.gallery-preview-panel__image',
+    'div[class*="gallery-preview-panel"] img',
+    'div[class*="item-gallery"] img',
+    'div[class*="pdp-"] img'
+  ];
+
+  for (const sel of imgSelectors) {
+    const el = document.querySelector(sel);
+    if (el) {
+      const src = el.src || el.getAttribute('src') || el.getAttribute('data-src') || '';
+      if (src && !src.includes('data:image')) {
+        image = src;
+        break;
+      }
+    }
+  }
+
+  if (!image) {
+    const ogImg = document.querySelector('meta[property="og:image"]');
+    if (ogImg && ogImg.content) image = ogImg.content;
+  }
+
+  return {
+    success: true,
+    data: {
+      url: currentUrl,
+      title: title || 'Lazada Product',
+      image: image || '',
+      category: 'lazada',
+      domain: domain || 'lazada.com.ph'
+    }
+  };
+}
+
+/**
+ * Extracts metadata from Amazon product pages.
+ */
+function extractAmazon() {
+  const currentUrl = window.location.href;
+  const domain = window.location.hostname.replace(/^www\./, '');
+
+  let title = '';
+  const titleEl = document.querySelector('#productTitle') || document.querySelector('#title');
+  if (titleEl && titleEl.innerText && titleEl.innerText.trim()) {
+    title = titleEl.innerText.trim();
+  }
+
+  if (!title) {
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle && ogTitle.content) title = ogTitle.content.trim();
+  }
+  if (!title) {
+    title = document.title ? document.title.replace(/^Amazon\.[a-z.]+:\s*/i, '').replace(/:\s*Amazon.*$/i, '').trim() : '';
+  }
+
+  let image = '';
+  const landingImg = document.querySelector('#landingImage') || document.querySelector('#imgBlkFront');
+  if (landingImg) {
+    image = landingImg.src || landingImg.getAttribute('data-old-hires') || landingImg.getAttribute('src') || '';
+  }
+
+  if (!image) {
+    const mainImg = document.querySelector('#main-image-container img');
+    if (mainImg) image = mainImg.src || mainImg.getAttribute('src') || '';
+  }
+
+  if (!image) {
+    const ogImg = document.querySelector('meta[property="og:image"]');
+    if (ogImg && ogImg.content) image = ogImg.content;
+  }
+
+  return {
+    success: true,
+    data: {
+      url: currentUrl,
+      title: title || 'Amazon Product',
+      image: image || '',
+      category: 'amazon',
+      domain: domain || 'amazon.com'
+    }
+  };
+}
+
+/**
+ * Generic OpenGraph fallback for any webpage.
+ */
+function extractGeneric() {
+  const currentUrl = window.location.href;
+  const domain = window.location.hostname.replace(/^www\./, '');
+
+  let title = '';
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle && ogTitle.content) title = ogTitle.content.trim();
+  if (!title) {
+    const h1 = document.querySelector('h1');
+    if (h1 && h1.innerText && h1.innerText.trim()) title = h1.innerText.trim();
+  }
+  if (!title) title = document.title || 'Saved Page';
+
+  let image = '';
+  const ogImg = document.querySelector('meta[property="og:image"]');
+  if (ogImg && ogImg.content) image = ogImg.content;
+
+  return {
+    success: true,
+    data: {
+      url: currentUrl,
+      title: title,
+      image: image || '',
+      category: 'other',
+      domain: domain
+    }
+  };
+}
+
 // Listen for message from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request && request.action === 'extractData') {
@@ -197,18 +345,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         result = extractShopee();
       } else if (hostname.includes('tiktok')) {
         result = extractTikTok();
+      } else if (hostname.includes('lazada') || hostname.includes('lzd.co')) {
+        result = extractLazada();
+      } else if (hostname.includes('amazon') || hostname.includes('amzn.to') || hostname.includes('amzn.com')) {
+        result = extractAmazon();
       } else {
-        result = {
-          success: false,
-          error: 'Open a Shopee product or TikTok video page first'
-        };
+        result = extractGeneric();
       }
 
       sendResponse(result);
     } catch (err) {
       sendResponse({
         success: false,
-        error: `Could not find product data on this page: ${err.message}`
+        error: `Could not extract product data: ${err.message}`
       });
     }
     return true; // Keep message channel open for async response

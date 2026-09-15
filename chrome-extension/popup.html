@@ -42,7 +42,19 @@
 
         <!-- Form Fields -->
         <form id="saveForm" class="link-form" novalidate>
-          <!-- Field 1: Page URL (Auto-filled, Read-only) -->
+          <!-- Field 1: Target Category (UA / WA / MA) -->
+          <div class="form-group">
+            <label for="categorySelect" class="form-label">
+              <span>Save to Category</span>
+            </label>
+            <select id="categorySelect" class="form-input form-select">
+              <option value="UA" selected>UA (Main Category)</option>
+              <option value="WA">WA (Main Category)</option>
+              <option value="MA">MA (Main Category)</option>
+            </select>
+          </div>
+
+          <!-- Field 2: Page URL (Auto-filled, Read-only) -->
           <div class="form-group">
             <label for="pageUrlInput" class="form-label">
               <span>Product page</span>
@@ -58,20 +70,19 @@
             />
           </div>
 
-          <!-- Field 2: Affiliate link (Manual input, Required) -->
+          <!-- Field 3: Affiliate link (Manual input, Optional) -->
           <div class="form-group">
             <label for="affiliateLinkInput" class="form-label">
-              <span>Affiliate link to save <span class="required-star">*</span></span>
+              <span>Affiliate link <span class="optional-pill">(Optional)</span></span>
             </label>
             <div class="input-wrapper">
               <input
                 id="affiliateLinkInput"
                 type="url"
                 class="form-input form-input-affiliate"
-                placeholder="Paste your affiliate link here"
+                placeholder="Paste affiliate shortlink (or leave blank)"
                 autocomplete="off"
                 spellcheck="false"
-                required
               />
               <button
                 id="pasteBtn"
@@ -82,9 +93,7 @@
                 Paste
               </button>
             </div>
-            <div id="affiliateError" class="input-error" style="display: none;">
-              Please paste your affiliate link
-            </div>
+            <p class="field-hint">You can save now and add the affiliate link later in LinkVault.</p>
           </div>
         </form>
       </div>
@@ -93,7 +102,7 @@
       <div id="errorState" class="state-box error-box" style="display: none;">
         <span class="error-emoji">😕</span>
         <p id="errorMessage" class="error-text">
-          Open a Shopee product or TikTok video page first
+          Open a product page (Shopee, TikTok, Lazada, Amazon) to save
         </p>
       </div>
     </main>

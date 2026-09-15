@@ -210,8 +210,26 @@ body {
   letter-spacing: 0.3px;
 }
 
-.required-star {
-  color: #f97316;
+.optional-pill {
+  font-size: 9px;
+  color: #a3a3a3;
+  font-weight: normal;
+}
+
+.field-hint {
+  font-size: 10px;
+  color: #737373;
+  margin-top: 4px;
+}
+
+.form-select {
+  cursor: pointer;
+  background-color: #171717;
+}
+
+.form-select option {
+  background-color: #1a1a1a;
+  color: #ffffff;
 }
 
 .input-wrapper {

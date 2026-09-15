@@ -1,19 +1,17 @@
 {
   "manifest_version": 3,
   "name": "LinkVault Saver",
-  "version": "1.0",
-  "description": "Save real product images and titles directly from Shopee and TikTok pages to LinkVault.",
+  "version": "1.1",
+  "description": "Save real product images and titles directly from Shopee, TikTok, Lazada, and Amazon to LinkVault.",
   "permissions": [
     "activeTab",
+    "tabs",
     "scripting",
     "storage"
   ],
   "host_permissions": [
-    "https://*.shopee.ph/*",
-    "https://*.tiktok.com/*",
-    "https://*.shp.ee/*",
-    "http://localhost:*/*",
-    "https://*/*"
+    "https://*/*",
+    "http://localhost:*/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -23,8 +21,18 @@
     {
       "matches": [
         "https://*.shopee.ph/*",
+        "https://*.shopee.com/*",
+        "https://*.shp.ee/*",
         "https://*.tiktok.com/*",
-        "https://*.shp.ee/*"
+        "https://*.lazada.com.ph/*",
+        "https://*.lazada.com/*",
+        "https://*.lazada.sg/*",
+        "https://*.lzd.co/*",
+        "https://*.amazon.com/*",
+        "https://*.amazon.com.ph/*",
+        "https://*.amazon.co.uk/*",
+        "https://*.amzn.to/*",
+        "https://*/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

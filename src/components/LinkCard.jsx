@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw, MoreVertical, FileText, Sparkles } from 'lucide-react';
+import { Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw, MoreVertical, FileText, Sparkles, AlertTriangle } from 'lucide-react';
 import { formatAddedTimestamp, formatCompletedTimestamp } from '../services/dateService';
 import { getRandomCaption, getCaptionWithoutBuyHere } from '../data/captions';
 
@@ -28,20 +28,23 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
       }
     };
     const handleEscape = (e) => {
-      if (e.key === 'Escape') setIsMenuOpen(false);
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
     };
-    document.addEventListener('pointerdown', handleOutsideClick);
+    document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEscape);
     return () => {
-      document.removeEventListener('pointerdown', handleOutsideClick);
+      document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isMenuOpen]);
 
+  // Swipe gesture tracking refs
   const startPosRef = useRef({ x: 0, y: 0 });
   const gestureRef = useRef({
     active: false,
-    direction: null, // 'horizontal' | 'vertical' | null
+    direction: null, // 'horizontal' | 'vertical'
     moved: false,
     pointerId: null,
   });
@@ -60,7 +63,14 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
     createdAt,
     status,
     completedAt,
+    affiliateUrl,
+    pageUrl,
   } = link;
+
+  // Target affiliate link for copying (uses affiliateUrl if present, or url if no separate pageUrl was saved)
+  const hasAffiliateLink = Boolean(affiliateUrl || (!pageUrl && url));
+  const effectiveAffiliateLink = affiliateUrl || (!pageUrl ? url : '');
+  const visitUrl = pageUrl || url;
 
   const isDone = status === 'done';
 
@@ -211,14 +221,18 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
     if (didSwipeRef.current || Math.abs(offsetX) > 5) {
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(visitUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleCopyClick = (e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(url);
+    if (!hasAffiliateLink || !effectiveAffiliateLink) {
+      onCopy && onCopy(null, '⚠️ No affiliate link added yet! Click Edit to add one.');
+      return;
+    }
+    navigator.clipboard.writeText(effectiveAffiliateLink);
     setCopied(true);
-    onCopy && onCopy(url);
+    onCopy && onCopy(effectiveAffiliateLink);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -229,10 +243,14 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
 
   // BUTTON 1 — COPY CAPTION + LINK
   // [Selected caption including “Buy Here 👇”]
-  // [The corresponding link]
+  // [The corresponding affiliate link]
   const handleCopyCaptionLink = (e) => {
     e.stopPropagation();
-    const formatted = `${selectedCaption}\n${url}`;
+    if (!hasAffiliateLink || !effectiveAffiliateLink) {
+      onCopy && onCopy(null, '⚠️ No affiliate link added yet! Click Edit to add one.');
+      return;
+    }
+    const formatted = `${selectedCaption}\n${effectiveAffiliateLink}`;
     navigator.clipboard.writeText(formatted);
     setCopiedCaptionLink(true);
     onCopy && onCopy(formatted);
@@ -242,11 +260,15 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
   // BUTTON 2 — COPY CAPTION ONLY (WITHOUT "Buy Here 👇") + LINK
   // Format:
   // [Selected caption without “Buy Here 👇”]
-  // [The corresponding link]
+  // [The corresponding affiliate link]
   const handleCopyCaptionOnly = (e) => {
     e.stopPropagation();
+    if (!hasAffiliateLink || !effectiveAffiliateLink) {
+      onCopy && onCopy(null, '⚠️ No affiliate link added yet! Click Edit to add one.');
+      return;
+    }
     const captionOnly = getCaptionWithoutBuyHere(selectedCaption);
-    const formatted = `${captionOnly}\n${url}`;
+    const formatted = `${captionOnly}\n${effectiveAffiliateLink}`;
     navigator.clipboard.writeText(formatted);
     setCopiedCaptionOnly(true);
     onCopy && onCopy(formatted);
@@ -261,7 +283,7 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      window.open(url, '_blank', 'noopener,noreferrer');
+      window.open(visitUrl, '_blank', 'noopener,noreferrer');
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       onDelete && onDelete(link.id);
@@ -391,6 +413,22 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
                 {isLoading && <span className="loading-pulse-pill">Loading</span>}
               </div>
 
+              {!hasAffiliateLink && (
+                <button
+                  type="button"
+                  className="no-affiliate-badge"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit && onEdit(link);
+                  }}
+                  title="No affiliate link added yet! Click to paste affiliate link"
+                  aria-label="No affiliate link added yet. Click to add affiliate link."
+                >
+                  <AlertTriangle size={12} className="no-affiliate-icon" />
+                  <span>No Affiliate Link</span>
+                </button>
+              )}
+
               {isDone && completedTimestampText ? (
                 <span className="card-timestamp card-timestamp-done" title={`Completed: ${completedAt}`}>
                   <Check size={12} className="timestamp-done-icon text-success" />
@@ -515,9 +553,11 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
           </h2>
 
           <div className="card-url-row">
-            <span className="card-url-link" title={url}>
+            <span className="card-url-link" title={effectiveAffiliateLink || visitUrl}>
               <Globe size={13} />
-              <span className="card-url-text">{url}</span>
+              <span className={`card-url-text ${!hasAffiliateLink ? 'card-url-text-unlinked' : ''}`}>
+                {effectiveAffiliateLink || `${visitUrl} (Product Page)`}
+              </span>
             </span>
           </div>
 

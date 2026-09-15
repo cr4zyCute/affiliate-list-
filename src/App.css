@@ -1021,6 +1021,51 @@
   background-color: var(--bg-subtle);
 }
 
+.category-tag-badge.category-lazada {
+  color: #0F146D;
+  border-color: var(--border-color);
+  background-color: var(--bg-subtle);
+}
+
+.category-tag-badge.category-amazon {
+  color: #FF9900;
+  border-color: var(--border-color);
+  background-color: var(--bg-subtle);
+}
+
+/* No Affiliate Link Warning Pill Badge */
+.no-affiliate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #D97706;
+  background-color: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.01em;
+}
+
+.no-affiliate-badge:hover {
+  background-color: rgba(217, 119, 6, 0.2);
+  border-color: rgba(217, 119, 6, 0.5);
+  transform: translateY(-1px);
+}
+
+.no-affiliate-icon {
+  flex-shrink: 0;
+  color: #D97706;
+}
+
+.card-url-text-unlinked {
+  color: var(--text-tertiary) !important;
+  font-style: italic;
+}
+
 /* Card Actions (1px Border Buttons with Unified Height & Clean Responsiveness) */
 .card-quick-actions {
   display: flex;

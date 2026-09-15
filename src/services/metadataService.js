@@ -159,11 +159,21 @@ function getYouTubeVideoId(url) {
 }
 
 /**
- * Automatically detects whether a URL belongs to Shopee, TikTok, Lazada, or other platforms.
+ * Automatically detects whether a URL belongs to Shopee, TikTok, Lazada, Amazon, or other platforms.
  */
 export function detectCategory(urlStr) {
   if (!urlStr) return 'other';
   const str = String(urlStr).toLowerCase();
+
+  // Amazon detection
+  if (
+    str.includes('amazon.') ||
+    str.includes('amzn.to') ||
+    str.includes('amzn.com') ||
+    str.includes('amazon')
+  ) {
+    return 'amazon';
+  }
 
   // Lazada detection
   if (
@@ -279,6 +289,8 @@ export function createOptimisticLink(rawUrl) {
     initialTitle = 'TikTok Link';
   } else if (category === 'lazada') {
     initialTitle = 'Lazada Link';
+  } else if (category === 'amazon') {
+    initialTitle = 'Amazon Product';
   } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
     initialTitle = 'YouTube Video';
   }
@@ -305,7 +317,7 @@ export function createOptimisticLink(rawUrl) {
 
 /**
  * Fetches Open Graph / Rich metadata for a given URL.
- * Skips scraping for platforms like Shopee and TikTok.
+ * Skips scraping for platforms like Shopee, TikTok, Lazada, and Amazon.
  */
 export async function fetchLinkMetadata(rawUrl) {
   const url = normalizeUrl(rawUrl);
@@ -324,6 +336,8 @@ export async function fetchLinkMetadata(rawUrl) {
     fallbackTitle = 'TikTok Link';
   } else if (category === 'lazada') {
     fallbackTitle = 'Lazada Link';
+  } else if (category === 'amazon') {
+    fallbackTitle = 'Amazon Product';
   } else if (domain.includes('youtube.com') || domain === 'youtu.be') {
     fallbackTitle = 'YouTube Video';
   }
@@ -332,8 +346,8 @@ export async function fetchLinkMetadata(rawUrl) {
   const ytId = getYouTubeVideoId(url);
   const nativeYtImage = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
 
-  // Instant response for Shopee, TikTok, and Lazada (no useless scraping or slow API calls)
-  if (category === 'shopee' || category === 'tiktok' || category === 'lazada') {
+  // Instant response for Shopee, TikTok, Lazada, and Amazon (no useless scraping or slow API calls)
+  if (category === 'shopee' || category === 'tiktok' || category === 'lazada' || category === 'amazon') {
     return {
       id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       url,
