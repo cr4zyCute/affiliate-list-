@@ -21,7 +21,8 @@ export function LinkList({ links, onDeleteLink, onCopyLink, onEditLink, onToggle
     if (activeCategory === 'shopee') return link.category === 'shopee';
     if (activeCategory === 'lazada') return link.category === 'lazada';
     if (activeCategory === 'tiktok') return link.category === 'tiktok';
-    if (activeCategory === 'other') return !['shopee', 'lazada', 'tiktok'].includes(link.category);
+    if (activeCategory === 'amazon') return link.category === 'amazon';
+    if (activeCategory === 'other') return !['shopee', 'lazada', 'tiktok', 'amazon'].includes(link.category);
     return true;
   });
 

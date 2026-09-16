@@ -6,7 +6,8 @@ export function CategoryTabs({ activeCategory, onSelectCategory, links = [] }) {
     shopee: links.filter((l) => l.category === 'shopee').length,
     lazada: links.filter((l) => l.category === 'lazada').length,
     tiktok: links.filter((l) => l.category === 'tiktok').length,
-    other: links.filter((l) => !['shopee', 'lazada', 'tiktok'].includes(l.category)).length,
+    amazon: links.filter((l) => l.category === 'amazon').length,
+    other: links.filter((l) => !['shopee', 'lazada', 'tiktok', 'amazon'].includes(l.category)).length,
   };
 
   const categories = [
@@ -14,6 +15,7 @@ export function CategoryTabs({ activeCategory, onSelectCategory, links = [] }) {
     { id: 'shopee', label: 'Shopee', count: counts.shopee },
     { id: 'lazada', label: 'Lazada', count: counts.lazada },
     { id: 'tiktok', label: 'TikTok', count: counts.tiktok },
+    { id: 'amazon', label: 'Amazon', count: counts.amazon },
     { id: 'other', label: 'Other', count: counts.other },
   ];
 
