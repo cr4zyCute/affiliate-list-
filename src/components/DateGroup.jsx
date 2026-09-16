@@ -1,7 +1,15 @@
 import React from 'react';
 import { LinkCard } from './LinkCard';
 
-export function DateGroup({ group, onDeleteLink, onCopyLink, onEditLink, onToggleDone, onAddToCategory }) {
+export function DateGroup({
+  group,
+  onDeleteLink,
+  onCopyLink,
+  onEditLink,
+  onToggleDone,
+  onAddToCategory,
+  onTogglePostedPlatform,
+}) {
   const { primaryLabel, secondaryLabel, links } = group;
 
   return (
@@ -29,6 +37,7 @@ export function DateGroup({ group, onDeleteLink, onCopyLink, onEditLink, onToggl
             onEdit={onEditLink}
             onToggleDone={onToggleDone}
             onAddToCategory={onAddToCategory}
+            onTogglePostedPlatform={onTogglePostedPlatform}
           />
         ))}
       </div>

@@ -80,6 +80,12 @@ async function ensureTable(client) {
       } catch {
         // column may already exist
       }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN posted_platforms TEXT DEFAULT '[]';`);
+      } catch {
+        // column may already exist
+      }
     })().catch((err) => {
       console.warn('Table auto-init notice:', err.message || err);
       // Reset so next query can retry if needed
@@ -103,7 +109,7 @@ export async function getAllLinks() {
     await ensureTable(client);
 
     const result = await client.execute({
-      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url FROM links ORDER BY created_at DESC',
+      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms FROM links ORDER BY created_at DESC',
       args: [],
     });
 
@@ -112,6 +118,16 @@ export async function getAllLinks() {
       const autoCategory = detectCategory(url);
       const rawCategory = String(row.category || 'other');
       const category = rawCategory && rawCategory !== 'other' ? rawCategory : autoCategory;
+
+      let postedPlatforms = [];
+      try {
+        if (row.posted_platforms) {
+          postedPlatforms = typeof row.posted_platforms === 'string' ? JSON.parse(row.posted_platforms) : row.posted_platforms;
+        }
+      } catch {
+        postedPlatforms = [];
+      }
+      if (!Array.isArray(postedPlatforms)) postedPlatforms = [];
 
       return {
         id: String(row.id || ''),
@@ -129,6 +145,7 @@ export async function getAllLinks() {
         caption: row.caption ? String(row.caption) : null,
         affiliateUrl: row.affiliate_url ? String(row.affiliate_url) : null,
         pageUrl: row.page_url ? String(row.page_url) : null,
+        postedPlatforms,
         isLoading: false,
       };
     });
@@ -186,9 +203,11 @@ export async function saveLink(link) {
     const affiliateUrl = link.affiliateUrl ? String(link.affiliateUrl).trim() : null;
     const pageUrl = link.pageUrl ? String(link.pageUrl).trim() : null;
 
+    const postedPlatforms = JSON.stringify(link.postedPlatforms || []);
+
     await client.execute({
-      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               url = excluded.url,
               domain = excluded.domain,
@@ -203,7 +222,8 @@ export async function saveLink(link) {
               main_category = excluded.main_category,
               caption = excluded.caption,
               affiliate_url = excluded.affiliate_url,
-              page_url = excluded.page_url`,
+              page_url = excluded.page_url,
+              posted_platforms = excluded.posted_platforms`,
       args: [
         link.id,
         link.url,
@@ -220,6 +240,7 @@ export async function saveLink(link) {
         caption,
         affiliateUrl,
         pageUrl,
+        postedPlatforms,
       ],
     });
 
@@ -321,4 +342,30 @@ export async function updateLinkStatus(id, status, completedAt) {
     throw error;
   }
 }
+
+/**
+ * Update the posted social media platforms list of a link in Turso.
+ */
+export async function updateLinkPostedPlatforms(id, postedPlatforms) {
+  const client = getTursoClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    await ensureTable(client);
+
+    const val = JSON.stringify(postedPlatforms || []);
+    await client.execute({
+      sql: 'UPDATE links SET posted_platforms = ? WHERE id = ?',
+      args: [val, id],
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Turso [updateLinkPostedPlatforms] error:', error);
+    throw error;
+  }
+}
+
 

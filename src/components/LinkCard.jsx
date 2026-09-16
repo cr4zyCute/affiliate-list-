@@ -2,11 +2,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Copy, Check, Globe, Loader2, Clock, Edit3, Trash2, CheckCircle2, RefreshCw, MoreVertical, FileText, Sparkles, AlertTriangle } from 'lucide-react';
 import { formatAddedTimestamp, formatCompletedTimestamp } from '../services/dateService';
 import { getRandomCaption, getCaptionWithoutBuyHere } from '../data/captions';
+import { SocialPostButtons } from './SocialPostButtons';
 
 const SWIPE_THRESHOLD = 75; // px distance to activate swipe action
 const MAX_SWIPE_DISTANCE = 130; // max translation clamp
 
-export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddToCategory }) {
+export function LinkCard({
+  link,
+  onDelete,
+  onCopy,
+  onEdit,
+  onToggleDone,
+  onAddToCategory,
+  onTogglePostedPlatform,
+}) {
   const [imageFailed, setImageFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [offsetX, setOffsetX] = useState(0);
@@ -441,6 +450,16 @@ export function LinkCard({ link, onDelete, onCopy, onEdit, onToggleDone, onAddTo
                 </span>
               ) : null}
             </div>
+
+            {/* Linear 1-Line Social Posted Status Buttons */}
+            <SocialPostButtons
+              linkId={id}
+              category={category}
+              url={url}
+              domain={domain}
+              postedPlatforms={link.postedPlatforms || []}
+              onTogglePosted={onTogglePostedPlatform}
+            />
 
             <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
               {/* 1. Mark as Done button (Icon Only) */}

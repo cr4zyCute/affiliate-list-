@@ -14,6 +14,7 @@ import {
   deleteLink,
   updateLink,
   updateLinkStatus,
+  updateLinkPostedPlatforms,
   linkExists,
 } from './lib/db';
 import {
@@ -52,6 +53,7 @@ function haveLinksChanged(current, incoming) {
     if (cur.completedAt !== inc.completedAt) return true;
     if (cur.mainCategory !== inc.mainCategory) return true;
     if (cur.caption !== inc.caption) return true;
+    if (JSON.stringify(cur.postedPlatforms || []) !== JSON.stringify(inc.postedPlatforms || [])) return true;
   }
   return false;
 }
@@ -515,6 +517,49 @@ export default function App() {
     showToast('Copied to clipboard', 'success');
   };
 
+  const handleTogglePostedPlatform = async (linkId, platformKey) => {
+    const targetLink = links.find((l) => l.id === linkId);
+    if (!targetLink) return;
+
+    const currentPosted = Array.isArray(targetLink.postedPlatforms) ? targetLink.postedPlatforms : [];
+    const isAlreadyPosted = currentPosted.includes(platformKey);
+    const nextPosted = isAlreadyPosted
+      ? currentPosted.filter((p) => p !== platformKey)
+      : [...currentPosted, platformKey];
+
+    // Optimistically update state and cache immediately
+    setLinks((prev) => {
+      const next = prev.map((l) => (l.id === linkId ? { ...l, postedPlatforms: nextPosted } : l));
+      setCachedLinks(next);
+      return next;
+    });
+
+    const platformLabels = {
+      shopee: 'Shopee',
+      lazada: 'Lazada',
+      tiktok: 'TikTok',
+      fb: 'Facebook',
+      ig: 'Instagram',
+      pinterest: 'Pinterest',
+      yt: 'YouTube',
+      quora: 'Quora',
+      x: 'X',
+    };
+    const name = platformLabels[platformKey] || platformKey.toUpperCase();
+
+    if (!isAlreadyPosted) {
+      showToast(`Marked as posted on ${name}`, 'success');
+    } else {
+      showToast(`Unmarked ${name}`, 'info');
+    }
+
+    try {
+      await updateLinkPostedPlatforms(linkId, nextPosted);
+    } catch (err) {
+      console.warn('Failed to update posted platforms in Turso:', err);
+    }
+  };
+
   const visibleLinks = links.filter((l) => (l.mainCategory || 'UA') === activeMainCategory);
   const existingUrls = visibleLinks.map((l) => l.url);
 
@@ -543,6 +588,7 @@ export default function App() {
             onEditLink={(link) => setEditingLink(link)}
             onToggleDone={handleToggleDone}
             onAddToCategory={handleAddToCategory}
+            onTogglePostedPlatform={handleTogglePostedPlatform}
           />
         </main>
 

@@ -17,7 +17,7 @@ export function getCachedLinks() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    // Ensure all cached links have category defined and normalize status/completedAt/mainCategory/caption
+    // Ensure all cached links have category defined and normalize status/completedAt/mainCategory/caption/postedPlatforms
     return parsed.map((item) => {
       const autoCategory = detectCategory(item.url);
       return {
@@ -27,6 +27,7 @@ export function getCachedLinks() {
         completedAt: item.completedAt || null,
         mainCategory: item.mainCategory || 'UA',
         caption: item.caption || null,
+        postedPlatforms: Array.isArray(item.postedPlatforms) ? item.postedPlatforms : [],
       };
     });
   } catch (e) {

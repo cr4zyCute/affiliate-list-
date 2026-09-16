@@ -1066,6 +1066,137 @@
   font-style: italic;
 }
 
+/* ==========================================================================
+   Social Media 1-Line Linear Posting Status Tracker Buttons
+   ========================================================================== */
+.card-social-post-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.social-post-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.social-post-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+}
+
+.social-post-btn:active {
+  transform: translateY(0);
+}
+
+/* Linear active / posted states per platform */
+.social-post-btn.is-posted {
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Individual Platform Active States */
+.social-post-btn.social-btn-shopee.is-posted {
+  color: #EE4D2D;
+  background-color: rgba(238, 77, 45, 0.12);
+  border-color: #EE4D2D;
+}
+
+.social-post-btn.social-btn-tiktok.is-posted {
+  color: #111111;
+  background-color: rgba(0, 0, 0, 0.08);
+  border-color: #111111;
+}
+:root[data-theme='dark'] .social-post-btn.social-btn-tiktok.is-posted,
+body.dark .social-post-btn.social-btn-tiktok.is-posted {
+  color: #00F2FE;
+  background-color: rgba(0, 242, 254, 0.14);
+  border-color: #00F2FE;
+}
+
+.social-post-btn.social-btn-lazada.is-posted {
+  color: #0F146D;
+  background-color: rgba(15, 20, 109, 0.12);
+  border-color: #0F146D;
+}
+:root[data-theme='dark'] .social-post-btn.social-btn-lazada.is-posted,
+body.dark .social-post-btn.social-btn-lazada.is-posted {
+  color: #537FE7;
+  background-color: rgba(83, 127, 231, 0.14);
+  border-color: #537FE7;
+}
+
+.social-post-btn.social-btn-fb.is-posted {
+  color: #1877F2;
+  background-color: rgba(24, 119, 242, 0.12);
+  border-color: #1877F2;
+}
+
+.social-post-btn.social-btn-ig.is-posted {
+  color: #E1306C;
+  background-color: rgba(225, 48, 108, 0.12);
+  border-color: #E1306C;
+}
+
+.social-post-btn.social-btn-pinterest.is-posted {
+  color: #E60023;
+  background-color: rgba(230, 0, 35, 0.12);
+  border-color: #E60023;
+}
+
+.social-post-btn.social-btn-yt.is-posted {
+  color: #FF0000;
+  background-color: rgba(255, 0, 0, 0.12);
+  border-color: #FF0000;
+}
+
+.social-post-btn.social-btn-quora.is-posted {
+  color: #B92B27;
+  background-color: rgba(185, 43, 39, 0.12);
+  border-color: #B92B27;
+}
+
+.social-post-btn.social-btn-x.is-posted {
+  color: #0F1419;
+  background-color: rgba(15, 20, 25, 0.1);
+  border-color: #0F1419;
+}
+:root[data-theme='dark'] .social-post-btn.social-btn-x.is-posted,
+body.dark .social-post-btn.social-btn-x.is-posted {
+  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: #FFFFFF;
+}
+
+/* Micro Posted Indicator Dot */
+.posted-indicator-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
 /* Card Actions (1px Border Buttons with Unified Height & Clean Responsiveness) */
 .card-quick-actions {
   display: flex;
@@ -1997,6 +2128,17 @@
     min-height: 30px;
     padding: 0 0.45rem;
     font-size: 0.75rem;
+  }
+
+  .card-social-post-group {
+    gap: 0.2rem;
+  }
+
+  .social-post-btn {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    min-height: 26px;
   }
 
   .card-action-btn.btn-toggle-done,

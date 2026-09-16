@@ -312,6 +312,7 @@ export function createOptimisticLink(rawUrl) {
     completedAt: null,
     isLoading: false,
     createdAt: new Date().toISOString(),
+    postedPlatforms: [],
   };
 }
 
