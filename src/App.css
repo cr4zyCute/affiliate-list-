@@ -837,7 +837,7 @@
 .link-card {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: stretch;
   background-color: var(--card-background);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -870,7 +870,7 @@
 .card-preview-area {
   width: 120px;
   min-width: 120px;
-  height: 80px;
+  min-height: 80px;
   background-color: var(--bg-subtle);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -880,7 +880,7 @@
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
-  margin-top: 2px;
+  align-self: stretch;
 }
 
 .link-card:hover .card-preview-area {

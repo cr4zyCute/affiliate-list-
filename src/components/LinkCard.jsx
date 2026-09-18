@@ -21,6 +21,7 @@ export function LinkCard({
   const [offsetX, setOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
   const menuRef = useRef(null);
 
   // Random or saved caption paired with this link
@@ -370,20 +371,39 @@ export function LinkCard({
         aria-label={`Bookmark: ${title || domain}. ${isDone ? 'Status: Done.' : 'Status: Active.'} Swipe right to edit, swipe left to delete.`}
       >
         {/* Visual Preview / Thumbnail Area */}
-        <div className="card-preview-area">
+        <div
+          className={`card-preview-area${image && !imageFailed && !isLoading ? ' preview-has-image' : ''}`}
+          onClick={(e) => {
+            if (image && !imageFailed && !isLoading) {
+              e.stopPropagation();
+              setIsImageExpanded(true);
+            }
+          }}
+          title={image && !imageFailed && !isLoading ? 'Click to view full image' : undefined}
+        >
           {isLoading ? (
             <div className="preview-loading-box">
               <Loader2 size={24} className="spinner text-accent" />
               <span className="loading-badge-text">Loading...</span>
             </div>
           ) : image && !imageFailed ? (
-            <img
-              src={image}
-              alt={`Preview of ${title || domain}`}
-              className="preview-image"
-              loading="lazy"
-              onError={() => setImageFailed(true)}
-            />
+            <>
+              <img
+                src={image}
+                alt={`Preview of ${title || domain}`}
+                className="preview-image"
+                loading="lazy"
+                onError={() => setImageFailed(true)}
+              />
+              <div className="preview-expand-hint" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              </div>
+            </>
           ) : (
             <div className="preview-fallback">
               {effectiveFavicon ? (
@@ -602,6 +622,37 @@ export function LinkCard({
           </div>
         </div>
       </article>
+
+      {/* Full Image Lightbox */}
+      {isImageExpanded && image && !imageFailed && (
+        <div
+          className="image-lightbox-overlay"
+          onClick={() => setIsImageExpanded(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Full image: ${title || domain}`}
+        >
+          <div className="image-lightbox-inner" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="image-lightbox-close"
+              onClick={() => setIsImageExpanded(false)}
+              aria-label="Close image preview"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <img
+              src={image}
+              alt={`Full image: ${title || domain}`}
+              className="image-lightbox-img"
+            />
+            {title && <p className="image-lightbox-caption">{title}</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
