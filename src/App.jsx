@@ -7,6 +7,7 @@ import { EditModal } from './components/EditModal';
 import { Toast } from './components/Toast';
 import {
   createOptimisticLink,
+  detectCategory,
 } from './services/metadataService';
 import {
   getAllLinks,
@@ -214,27 +215,81 @@ export default function App() {
     };
   }, [syncFromTurso]);
 
-  // CHANGED: Handle incoming shared link from Android share sheet
+  // CHANGED: Handle incoming shared link from Android share sheet WITH real title + image
+  // This mirrors what the browser extension does: optimistic card first, then fetch metadata.
   useEffect(() => {
+    if (!window.location.pathname.startsWith('/share-target')) return;
+
     const params = new URLSearchParams(window.location.search);
-    const sharedUrl = params.get('url') || params.get('text');
+    const sharedRaw = params.get('url') || params.get('text') || '';
 
-    if (sharedUrl && (window.location.pathname === '/share-target' || window.location.pathname.startsWith('/share-target'))) {
-      // Extract the URL if it was shared as text (e.g. "Check this out: https://...")
-      const urlMatch = sharedUrl.match(/https?:\/\/[^\s]+/);
-      const extractedUrl = urlMatch ? urlMatch[0] : sharedUrl;
+    // Extract the URL if it was shared as text (e.g. "Check this out: https://...")
+    const urlMatch = sharedRaw.match(/https?:\/\/[^\s]+/);
+    const extractedUrl = urlMatch ? urlMatch[0].replace(/[.,;:)\]}>"'`]+$/, '') : sharedRaw.trim();
 
-      if (extractedUrl) {
-        // Automatically add the link — same flow as typing it in manually
-        handleAddLinks([extractedUrl]);
-
-        // Clean up the URL so the share-target path disappears
-        window.history.replaceState({}, '', '/');
-
-        // Show a brief toast
-        showToast('Link saved from share!');
-      }
+    if (!extractedUrl) {
+      window.history.replaceState({}, '', '/');
+      return;
     }
+
+    // Clean up the URL bar immediately so the share-target path disappears
+    window.history.replaceState({}, '', '/');
+
+    // ── Fetch metadata + save, same flow as the browser extension ──
+    (async () => {
+      const category = detectCategory(extractedUrl);
+
+      // 1. Optimistic placeholder card (shows instantly with loading indicator)
+      const optimistic = createOptimisticLink(extractedUrl);
+      optimistic.mainCategory = activeMainCategory;
+      optimistic.isLoading = true;
+      const optimisticId = optimistic.id;
+
+      setLinks((prev) => [optimistic, ...prev]);
+
+      let enriched = { ...optimistic };
+
+      // 2. Fetch real TikTok title + thumbnail from our serverless API
+      if (category === 'tiktok') {
+        try {
+          const res = await fetch(`/api/tiktok?url=${encodeURIComponent(extractedUrl)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (!data.error && data.title) {
+              enriched.title = data.title;
+              enriched.image = data.image || null;
+              enriched.description = data.description || '';
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('Share target: TikTok metadata fetch failed:', fetchErr);
+        }
+      }
+
+      // 3. Finalize and update the card in state
+      enriched.isLoading = false;
+      enriched.createdAt = new Date().toISOString();
+
+      setLinks((prev) => {
+        const next = prev.map((l) => (l.id === optimisticId ? enriched : l));
+        setCachedLinks(next);
+        return next;
+      });
+
+      // 4. Save to Turso database
+      try {
+        await saveLink(enriched);
+        showToast(
+          category === 'tiktok' && enriched.image
+            ? '🎵 TikTok saved with preview!'
+            : 'Link saved from share!',
+          'success'
+        );
+      } catch (dbErr) {
+        console.warn('Share target: Turso save failed, kept locally:', dbErr);
+        showToast('Saved locally — sync pending', 'warning');
+      }
+    })();
   }, []);
 
   // Real-time Extension Save & Pending Queue Sync Engine
