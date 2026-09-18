@@ -699,6 +699,238 @@
 }
 
 /* ==========================================================================
+   Post Status Quick Filter Pills (1-Click Segmented Filter)
+   ========================================================================== */
+.post-status-pills-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.1rem 0 0.25rem;
+}
+
+.post-status-pills-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.post-status-pills-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.status-pill:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.status-pill.is-active {
+  background-color: var(--text-primary);
+  color: var(--bg-page);
+  border-color: var(--text-primary);
+  font-weight: 600;
+}
+
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-not-posted {
+  background-color: #ef4444;
+}
+
+.dot-partial {
+  background-color: #f59e0b;
+}
+
+.dot-fully-posted {
+  background-color: #10b981;
+}
+
+.dot-custom {
+  background-color: #6366f1;
+}
+
+.pill-count {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.05rem 0.35rem;
+  border-radius: 9999px;
+  background-color: var(--bg-subtle);
+  color: inherit;
+  opacity: 0.9;
+}
+
+.status-pill.is-active .pill-count {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+
+:root[data-theme='dark'] .status-pill.is-active .pill-count {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+.status-pill.is-custom-filter {
+  background-color: var(--bg-hover);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+
+.pill-close {
+  font-size: 0.625rem;
+  margin-left: 0.15rem;
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   Social Post Filter Dropdown Menu
+   ========================================================================== */
+.dropdown-menu-post-filter {
+  min-width: 250px;
+  max-width: 320px;
+}
+
+.active-dot-social {
+  background-color: #6366f1;
+}
+
+.dropdown-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.post-filter-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-indicator-none {
+  background-color: #ef4444;
+}
+
+.status-indicator-partial {
+  background-color: #f59e0b;
+}
+
+.status-indicator-full {
+  background-color: #10b981;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 0.35rem 0.25rem;
+}
+
+.dropdown-platform-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.dropdown-platform-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.platform-row-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.platform-toggle-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: var(--bg-page);
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-color);
+}
+
+.btn-platform-subfilter {
+  font-size: 0.6875rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+
+.btn-platform-subfilter:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.btn-platform-subfilter.is-selected.is-not-posted {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.btn-platform-subfilter.is-selected.is-posted {
+  background-color: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+  font-weight: 600;
+}
+
+.dropdown-reset-btn {
+  width: 100%;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  border-radius: var(--radius-xs);
+  transition: all 0.12s ease;
+}
+
+.dropdown-reset-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
    Timeline & Date Separators (1px Line)
    ========================================================================== */
 .timeline-container {
