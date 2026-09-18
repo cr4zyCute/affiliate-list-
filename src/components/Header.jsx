@@ -1,5 +1,6 @@
 import React from 'react';
-import { BookmarkCheck, Link as LinkIcon, Trash2, Moon, Sun } from 'lucide-react';
+import { BookmarkCheck, Link as LinkIcon, Moon, Sun, Download } from 'lucide-react';
+import { downloadAllExcel } from '../utils/exportExcel';
 
 export function Header({
   totalLinks,
@@ -8,6 +9,7 @@ export function Header({
   onToggleTheme,
   activeMainCategory = 'UA',
   onSelectMainCategory,
+  links = [],
 }) {
   return (
     <header className="app-header">
@@ -49,6 +51,20 @@ export function Header({
               </button>
             ))}
           </div>
+
+          {/* Download All Sheets — next to main categories */}
+          {links.length > 0 && (
+            <button
+              type="button"
+              className="btn-header-download-all"
+              onClick={() => downloadAllExcel(links, activeMainCategory)}
+              title={`Download all ${links.length} ${activeMainCategory} links as Excel`}
+              aria-label="Download all links as Excel"
+            >
+              <Download size={13} />
+              <span>All Sheets</span>
+            </button>
+          )}
 
           <div className="stats-pill" title={`Total saved links in ${activeMainCategory}`}>
             <BookmarkCheck size={16} />

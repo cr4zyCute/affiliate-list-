@@ -6,6 +6,8 @@ import { SortControl } from './SortControl';
 import { DateGroup } from './DateGroup';
 import { EmptyState } from './EmptyState';
 import { filterLinksByDate, groupLinksByDate } from '../services/dateService';
+import { downloadCategoryExcel, downloadAllExcel } from '../utils/exportExcel';
+import { Download } from 'lucide-react';
 
 export function LinkList({
   links,
@@ -15,12 +17,25 @@ export function LinkList({
   onToggleDone,
   onAddToCategory,
   onTogglePostedPlatform,
+  activeMainCategory = 'UA',
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
   const [sortOrder, setSortOrder] = useState('newest');
+
+  // Sub-category counts for download button tooltips
+  const categoryCounts = {
+    all: links.length,
+    shopee: links.filter((l) => l.category === 'shopee').length,
+    lazada: links.filter((l) => l.category === 'lazada').length,
+    tiktok: links.filter((l) => l.category === 'tiktok').length,
+    amazon: links.filter((l) => l.category === 'amazon').length,
+    other: links.filter(
+      (l) => !['shopee', 'lazada', 'tiktok', 'amazon'].includes(l.category),
+    ).length,
+  };
 
   // Multi-criteria Filtering Pipeline
   // 1. Filter by category
@@ -66,6 +81,7 @@ export function LinkList({
     setSortOrder('newest');
   };
 
+
   return (
     <section className="link-list-section" aria-label="Timeline of saved links">
       {/* 1. Category Tabs Navigation */}
@@ -75,7 +91,7 @@ export function LinkList({
         links={links}
       />
 
-      {/* 2. Compact Search & Filter Control Bar */}
+
       {links.length > 0 && (
         <div className="filter-controls-container">
           <div className="search-filter-bar">
@@ -97,6 +113,17 @@ export function LinkList({
                 sortOrder={sortOrder}
                 onChangeSort={setSortOrder}
               />
+
+              {/* Per-category download — active tab's links */}
+              <button
+                type="button"
+                className="btn-excel-cat-inline"
+                onClick={() => downloadCategoryExcel(links, activeCategory, activeMainCategory)}
+                title={`Download ${activeCategory === 'all' ? 'all' : activeCategory} links as Excel`}
+                aria-label="Download current category as Excel"
+              >
+                <Download size={13} />
+              </button>
             </div>
           </div>
 
@@ -118,7 +145,7 @@ export function LinkList({
         </div>
       )}
 
-      {/* 3. Main Timeline Display */}
+      {/* 4. Main Timeline Display */}
       <div className="timeline-container">
         {links.length === 0 ? (
           <EmptyState type="no-links" />
@@ -142,3 +169,5 @@ export function LinkList({
     </section>
   );
 }
+
+

@@ -573,6 +573,7 @@ export default function App() {
           onToggleTheme={handleToggleTheme}
           activeMainCategory={activeMainCategory}
           onSelectMainCategory={handleSelectMainCategory}
+          links={visibleLinks}
         />
 
         <main className="app-main">
@@ -589,6 +590,7 @@ export default function App() {
             onToggleDone={handleToggleDone}
             onAddToCategory={handleAddToCategory}
             onTogglePostedPlatform={handleTogglePostedPlatform}
+            activeMainCategory={activeMainCategory}
           />
         </main>
 
