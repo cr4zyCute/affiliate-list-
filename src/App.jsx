@@ -64,6 +64,9 @@ export default function App() {
   const [activeMainCategory, setActiveMainCategory] = useState(() => {
     return localStorage.getItem('linkvault_main_category') || 'UA';
   });
+
+  // Track whether the user has ever explicitly chosen a category
+  const hasSavedCategoryPref = !!localStorage.getItem('linkvault_main_category');
   const [toast, setToast] = useState(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [deletingLink, setDeletingLink] = useState(null);
@@ -124,6 +127,20 @@ export default function App() {
 
         setLinks(nextLinks);
         setCachedLinks(remoteLinks); // update first-paint cache
+
+        // AUTO-DETECT CATEGORY: On initial load, if no saved preference exists,
+        // switch to whichever category has the most links so fresh devices
+        // never show an empty vault when data exists in another category.
+        if (isInitial && !hasSavedCategoryPref && remoteLinks.length > 0) {
+          const counts = {};
+          for (const l of remoteLinks) {
+            const cat = l.mainCategory || 'UA';
+            counts[cat] = (counts[cat] || 0) + 1;
+          }
+          const bestCat = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+          setActiveMainCategory(bestCat);
+          localStorage.setItem('linkvault_main_category', bestCat);
+        }
       }
     } catch (err) {
       if (isInitial) {
