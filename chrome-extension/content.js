@@ -290,6 +290,100 @@ function extractAmazon() {
     if (ogImg && ogImg.content) image = ogImg.content;
   }
 
+  // 3. Star Rating & Review Count
+  let rating = null;
+  let reviewsCount = null;
+
+  const ratingEl = document.querySelector('#acrPopover') ||
+                   document.querySelector('#averageCustomerReviews .a-icon-alt') ||
+                   document.querySelector('span[data-hook="rating-out-of-text"]') ||
+                   document.querySelector('i[class*="a-icon-star"] .a-icon-alt');
+  if (ratingEl) {
+    const ratingText = ratingEl.innerText || ratingEl.textContent || '';
+    const match = ratingText.match(/(\d+(?:\.\d+)?)\s*(?:out of|\/|de|von)/i) || ratingText.match(/(\d+(?:\.\d+)?)/);
+    if (match && match[1]) {
+      const parsed = parseFloat(match[1]);
+      if (!isNaN(parsed) && parsed > 0 && parsed <= 5) {
+        rating = parsed;
+      }
+    }
+  }
+
+  const reviewsEl = document.querySelector('#acrCustomerReviewText') ||
+                    document.querySelector('span[data-hook="total-review-count"]');
+  if (reviewsEl) {
+    const rawReviews = (reviewsEl.innerText || reviewsEl.textContent || '').trim();
+    // e.g. "2,617 ratings" -> "2,617"
+    reviewsCount = rawReviews.replace(/\s*(?:ratings?|reviews?|global ratings?)/gi, '').trim() || rawReviews;
+  }
+
+  // 4. Social Proof: "600+ bought in past month"
+  let boughtCount = null;
+  const boughtSelectors = [
+    '#social-proofing-faceout-title-tk_bought span',
+    '#social-proofing-faceout-title-tk_bought',
+    'div[id*="social-proofing"] span',
+    'div[id*="bought"] span',
+    'span[class*="social-proofing"]'
+  ];
+  for (const bSel of boughtSelectors) {
+    const el = document.querySelector(bSel);
+    if (el && el.innerText && /bought\s+in\s+past/i.test(el.innerText)) {
+      boughtCount = el.innerText.trim();
+      break;
+    }
+  }
+
+  // 5. Active Color Name (e.g. "Black")
+  let colorName = null;
+  const colorSelectors = [
+    '#inline-twister-expanded-dimension-text-color_name',
+    '#variation_color_name .selection',
+    'div[id*="variation_color"] .selection',
+    '#twister-plus-inline-twister-card span.twister-dimension-selected-value'
+  ];
+  for (const cSel of colorSelectors) {
+    const el = document.querySelector(cSel);
+    if (el && el.innerText && el.innerText.trim()) {
+      colorName = el.innerText.trim().replace(/^Color:\s*/i, '');
+      break;
+    }
+  }
+
+  // 6. Color Swatches / Variations (all available color options and images)
+  const colorVariants = [];
+  const swatchItems = document.querySelectorAll(
+    '#variation_color_name ul li, #inline-twister-row-color_name li, div[id*="color_name"] li[class*="swatch"]'
+  );
+
+  swatchItems.forEach((li) => {
+    const img = li.querySelector('img');
+    const swatchImgSrc = img ? (img.src || img.getAttribute('src') || img.getAttribute('data-src') || '') : '';
+    let name = (li.getAttribute('title') || '').replace(/^Click to select\s*/i, '').trim();
+    if (!name && img && img.alt) {
+      name = img.alt.trim();
+    }
+
+    if (swatchImgSrc && !swatchImgSrc.includes('trans-pixel') && !swatchImgSrc.includes('no-img')) {
+      // Get higher resolution version if thumbnail token exists
+      let fullImg = swatchImgSrc.replace(/\._[A-Z0-9_,]+_\./i, '._AC_SL1000_.');
+      colorVariants.push({
+        name: name || 'Color',
+        image: fullImg,
+        thumbnail: swatchImgSrc,
+      });
+    }
+  });
+
+  // If no swatch list found, but active color & image exist, record as single variant
+  if (colorVariants.length === 0 && image) {
+    colorVariants.push({
+      name: colorName || 'Default',
+      image,
+      thumbnail: image,
+    });
+  }
+
   return {
     success: true,
     data: {
@@ -297,7 +391,12 @@ function extractAmazon() {
       title: title || 'Amazon Product',
       image: image || '',
       category: 'amazon',
-      domain: domain || 'amazon.com'
+      domain: domain || 'amazon.com',
+      rating,
+      reviewsCount,
+      boughtCount,
+      colorName,
+      colorVariants,
     }
   };
 }

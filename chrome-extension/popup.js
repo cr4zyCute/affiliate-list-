@@ -261,8 +261,8 @@ const TURSO_CONFIG = {
 async function saveLinkDirectToTurso(link) {
   try {
     const url = `${TURSO_CONFIG.dbUrl}/v2/pipeline`;
-    const sql = `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    const sql = `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, rating, reviews_count, bought_count, color_name, color_variants)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         url = excluded.url,
         domain = excluded.domain,
@@ -277,7 +277,12 @@ async function saveLinkDirectToTurso(link) {
         main_category = excluded.main_category,
         caption = excluded.caption,
         affiliate_url = excluded.affiliate_url,
-        page_url = excluded.page_url`;
+        page_url = excluded.page_url,
+        rating = COALESCE(excluded.rating, links.rating),
+        reviews_count = COALESCE(excluded.reviews_count, links.reviews_count),
+        bought_count = COALESCE(excluded.bought_count, links.bought_count),
+        color_name = COALESCE(excluded.color_name, links.color_name),
+        color_variants = CASE WHEN excluded.color_variants != '[]' THEN excluded.color_variants ELSE links.color_variants END`;
 
     const args = [
       { type: 'text', value: link.id },
@@ -294,7 +299,12 @@ async function saveLinkDirectToTurso(link) {
       { type: 'text', value: link.mainCategory || 'UA' },
       link.caption ? { type: 'text', value: link.caption } : { type: 'null' },
       link.affiliateUrl ? { type: 'text', value: link.affiliateUrl } : { type: 'null' },
-      link.pageUrl ? { type: 'text', value: link.pageUrl } : { type: 'null' }
+      link.pageUrl ? { type: 'text', value: link.pageUrl } : { type: 'null' },
+      link.rating != null ? { type: 'float', value: Number(link.rating) } : { type: 'null' },
+      link.reviewsCount ? { type: 'text', value: String(link.reviewsCount) } : { type: 'null' },
+      link.boughtCount ? { type: 'text', value: String(link.boughtCount) } : { type: 'null' },
+      link.colorName ? { type: 'text', value: String(link.colorName) } : { type: 'null' },
+      { type: 'text', value: JSON.stringify(link.colorVariants || []) }
     ];
 
     const res = await fetch(url, {
@@ -368,7 +378,12 @@ async function handleSave() {
     status: 'active',
     completedAt: null,
     isLoading: false,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    rating: extractedData.rating != null ? extractedData.rating : null,
+    reviewsCount: extractedData.reviewsCount || null,
+    boughtCount: extractedData.boughtCount || null,
+    colorName: extractedData.colorName || null,
+    colorVariants: extractedData.colorVariants || [],
   };
 
   // 1. Direct HTTP save to Turso Database

@@ -111,7 +111,7 @@ function extensionApiPlugin(env) {
                     {
                       type: 'execute',
                       stmt: {
-                        sql: `SELECT id, url, domain, category, title, description, image, caption, affiliate_url, page_url, created_at
+                        sql: `SELECT id, url, domain, category, title, description, image, caption, affiliate_url, page_url, created_at, rating, reviews_count, bought_count, color_name, color_variants
                               FROM links
                               WHERE (category = 'amazon' OR url LIKE '%amazon.%' OR url LIKE '%amzn.%')
                                 AND (store_visible IS NULL OR store_visible = 1)
@@ -134,6 +134,17 @@ function extensionApiPlugin(env) {
               const products = rows.map((row) => {
                 const obj = {}
                 colNames.forEach((col, i) => { obj[col] = row[i]?.value ?? null })
+
+                let colorVariants = []
+                try {
+                  if (obj.color_variants) {
+                    colorVariants = typeof obj.color_variants === 'string' ? JSON.parse(obj.color_variants) : obj.color_variants
+                  }
+                } catch {
+                  colorVariants = []
+                }
+                if (!Array.isArray(colorVariants)) colorVariants = []
+
                 return {
                   id: obj.id,
                   title: obj.title || 'Amazon Product',
@@ -144,6 +155,11 @@ function extensionApiPlugin(env) {
                   pageUrl: obj.page_url || obj.url,
                   domain: obj.domain || 'amazon.com',
                   createdAt: obj.created_at,
+                  rating: obj.rating != null ? Number(obj.rating) : null,
+                  reviewsCount: obj.reviews_count ? String(obj.reviews_count) : null,
+                  boughtCount: obj.bought_count ? String(obj.bought_count) : null,
+                  colorName: obj.color_name ? String(obj.color_name) : null,
+                  colorVariants,
                 }
               })
 

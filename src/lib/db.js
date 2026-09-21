@@ -92,6 +92,36 @@ async function ensureTable(client) {
       } catch {
         // column may already exist
       }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN rating REAL;`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN reviews_count TEXT;`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN bought_count TEXT;`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN color_name TEXT;`);
+      } catch {
+        // column may already exist
+      }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN color_variants TEXT DEFAULT '[]';`);
+      } catch {
+        // column may already exist
+      }
     })().catch((err) => {
       console.warn('Table auto-init notice:', err.message || err);
       // Reset so next query can retry if needed
@@ -115,7 +145,7 @@ export async function getAllLinks() {
     await ensureTable(client);
 
     const result = await client.execute({
-      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms, store_visible FROM links ORDER BY created_at DESC',
+      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms, store_visible, rating, reviews_count, bought_count, color_name, color_variants FROM links ORDER BY created_at DESC',
       args: [],
     });
 
@@ -135,6 +165,16 @@ export async function getAllLinks() {
       }
       if (!Array.isArray(postedPlatforms)) postedPlatforms = [];
 
+      let colorVariants = [];
+      try {
+        if (row.color_variants) {
+          colorVariants = typeof row.color_variants === 'string' ? JSON.parse(row.color_variants) : row.color_variants;
+        }
+      } catch {
+        colorVariants = [];
+      }
+      if (!Array.isArray(colorVariants)) colorVariants = [];
+
       return {
         id: String(row.id || ''),
         url,
@@ -153,6 +193,11 @@ export async function getAllLinks() {
         pageUrl: row.page_url ? String(row.page_url) : null,
         postedPlatforms,
         storeVisible: row.store_visible === 0 ? false : true,
+        rating: row.rating != null ? Number(row.rating) : null,
+        reviewsCount: row.reviews_count ? String(row.reviews_count) : null,
+        boughtCount: row.bought_count ? String(row.bought_count) : null,
+        colorName: row.color_name ? String(row.color_name) : null,
+        colorVariants,
         isLoading: false,
       };
     });
@@ -211,10 +256,15 @@ export async function saveLink(link) {
     const pageUrl = link.pageUrl ? String(link.pageUrl).trim() : null;
 
     const postedPlatforms = JSON.stringify(link.postedPlatforms || []);
+    const rating = link.rating != null ? Number(link.rating) : null;
+    const reviewsCount = link.reviewsCount ? String(link.reviewsCount).trim() : null;
+    const boughtCount = link.boughtCount ? String(link.boughtCount).trim() : null;
+    const colorName = link.colorName ? String(link.colorName).trim() : null;
+    const colorVariants = JSON.stringify(link.colorVariants || []);
 
     await client.execute({
-      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO links (id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms, rating, reviews_count, bought_count, color_name, color_variants)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
               url = excluded.url,
               domain = excluded.domain,
@@ -230,7 +280,12 @@ export async function saveLink(link) {
               caption = excluded.caption,
               affiliate_url = excluded.affiliate_url,
               page_url = excluded.page_url,
-              posted_platforms = excluded.posted_platforms`,
+              posted_platforms = excluded.posted_platforms,
+              rating = COALESCE(excluded.rating, links.rating),
+              reviews_count = COALESCE(excluded.reviews_count, links.reviews_count),
+              bought_count = COALESCE(excluded.bought_count, links.bought_count),
+              color_name = COALESCE(excluded.color_name, links.color_name),
+              color_variants = CASE WHEN excluded.color_variants != '[]' THEN excluded.color_variants ELSE links.color_variants END`,
       args: [
         link.id,
         link.url,
@@ -248,6 +303,11 @@ export async function saveLink(link) {
         affiliateUrl,
         pageUrl,
         postedPlatforms,
+        rating,
+        reviewsCount,
+        boughtCount,
+        colorName,
+        colorVariants,
       ],
     });
 

@@ -54,54 +54,317 @@ function SkeletonGrid() {
   );
 }
 
-// ── Individual product card ──────────────────────────────────
-function ProductCard({ product }) {
-  const [imgFailed, setImgFailed] = useState(false);
+// ── Star Rating Component ─────────────────────────────────────
+function StarRating({ rating = 0, reviewsCount = null }) {
+  if (!rating || rating <= 0) return null;
+  const num = Number(rating);
 
+  // Generate 5 star indicators
+  const stars = [];
+  for (let i = 1; i <= 5; i++) {
+    if (num >= i) {
+      stars.push('full');
+    } else if (num >= i - 0.5) {
+      stars.push('half');
+    } else {
+      stars.push('empty');
+    }
+  }
+
+  return (
+    <div className="store-rating-wrap" title={`${num} out of 5 stars`}>
+      <span className="store-rating-score">{num.toFixed(1)}</span>
+      <div className="store-stars-row" aria-label={`${num} stars`}>
+        {stars.map((type, idx) => (
+          <svg
+            key={idx}
+            className="store-star-icon"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill={type === 'full' ? '#F59E0B' : type === 'half' ? 'url(#halfStarGrad)' : '#E5E7EB'}
+            stroke="#F59E0B"
+            strokeWidth="1.2"
+          >
+            <defs>
+              <linearGradient id="halfStarGrad" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="50%" stopColor="#F59E0B" />
+                <stop offset="50%" stopColor="#E5E7EB" />
+              </linearGradient>
+            </defs>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        ))}
+      </div>
+      {reviewsCount && (
+        <span className="store-reviews-count">({reviewsCount})</span>
+      )}
+    </div>
+  );
+}
+
+// ── Bought Badge Component ───────────────────────────────────
+function BoughtBadge({ count }) {
+  if (!count) return null;
+  return (
+    <div className="store-bought-badge" title={count}>
+      <span className="store-bought-fire">🔥</span>
+      <span>{count}</span>
+    </div>
+  );
+}
+
+// ── Auto-Sliding Card Image Gallery ──────────────────────────
+function CardImageSlider({ product }) {
+  const variants = (product.colorVariants && product.colorVariants.length > 0)
+    ? product.colorVariants
+    : (product.image ? [{ name: product.colorName || 'Default', image: product.image }] : []);
+
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    if (variants.length <= 1 || isHovered) return;
+    const timer = setInterval(() => {
+      setCurrentIdx((prev) => (prev + 1) % variants.length);
+    }, 3200);
+    return () => clearInterval(timer);
+  }, [variants.length, isHovered]);
+
+  const currentVariant = variants[currentIdx] || variants[0];
+  const displayImg = currentVariant?.image || product.image;
+
+  return (
+    <div
+      className="store-card-image-wrap"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {displayImg ? (
+        <img
+          src={displayImg}
+          alt={product.title}
+          className="store-card-img"
+          loading="lazy"
+        />
+      ) : (
+        <div className="store-card-img-fallback">
+          <PackageIcon size={40} />
+          <span>Amazon</span>
+        </div>
+      )}
+
+      {/* Color count badge */}
+      {variants.length > 1 && (
+        <div className="store-card-variant-tag">
+          <span className="store-variant-tag-dot" />
+          <span>{variants.length} colors</span>
+        </div>
+      )}
+
+      {/* Slide indicator dots */}
+      {variants.length > 1 && (
+        <div className="store-slider-dots">
+          {variants.slice(0, 6).map((_, i) => (
+            <span
+              key={i}
+              className={`store-slider-dot ${i === currentIdx ? 'is-active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentIdx(i);
+              }}
+            />
+          ))}
+          {variants.length > 6 && (
+            <span className="store-slider-dot-more">+{variants.length - 6}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Product Preview Modal ────────────────────────────────────
+function ProductPreviewModal({ product, onClose }) {
+  if (!product) return null;
+
+  const variants = (product.colorVariants && product.colorVariants.length > 0)
+    ? product.colorVariants
+    : (product.image ? [{ name: product.colorName || 'Default', image: product.image, thumbnail: product.image }] : []);
+
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const activeVariant = variants[selectedIdx] || variants[0];
+  const activeColorName = activeVariant?.name || product.colorName || 'Default';
+  const activeImage = activeVariant?.image || product.image;
+  const affiliateHref = product.url || product.pageUrl || '#';
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="store-modal-overlay" onClick={onClose}>
+      <div className="store-modal-card" onClick={(e) => e.stopPropagation()}>
+        <button className="store-modal-close" onClick={onClose} aria-label="Close preview">
+          ✕
+        </button>
+
+        <div className="store-modal-grid">
+          {/* Main Visual Preview */}
+          <div className="store-modal-preview-area">
+            <div className="store-modal-img-wrap">
+              {activeImage ? (
+                <img
+                  src={activeImage}
+                  alt={activeColorName}
+                  className="store-modal-img"
+                />
+              ) : (
+                <div className="store-card-img-fallback">
+                  <PackageIcon size={48} />
+                  <span>Amazon</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Details & Color Variations */}
+          <div className="store-modal-details">
+            <div className="store-modal-badge-row">
+              <span className="store-modal-domain">amazon.com</span>
+              <BoughtBadge count={product.boughtCount} />
+            </div>
+
+            <h2 className="store-modal-title">{product.title}</h2>
+
+            <StarRating rating={product.rating} reviewsCount={product.reviewsCount} />
+
+            {product.caption && (
+              <p className="store-modal-caption">{product.caption}</p>
+            )}
+
+            {/* 🎨 Active Color Name */}
+            <div className="store-modal-color-section">
+              <div className="store-modal-color-label">
+                <span className="store-color-icon">🎨</span>
+                <span className="store-color-label-text">Color:</span>
+                <span className="store-color-active-name">{activeColorName}</span>
+              </div>
+
+              {/* 👗 All Color Swatches / Thumbnails */}
+              {variants.length > 0 && (
+                <div className="store-swatches-grid" role="radiogroup" aria-label="Available colors">
+                  {variants.map((variant, idx) => {
+                    const isSelected = idx === selectedIdx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`store-swatch-item ${isSelected ? 'is-selected' : ''}`}
+                        onClick={() => setSelectedIdx(idx)}
+                        title={variant.name}
+                        aria-checked={isSelected}
+                        role="radio"
+                      >
+                        {variant.thumbnail || variant.image ? (
+                          <img
+                            src={variant.thumbnail || variant.image}
+                            alt={variant.name}
+                            className="store-swatch-thumb"
+                          />
+                        ) : (
+                          <span className="store-swatch-fallback">{variant.name.charAt(0)}</span>
+                        )}
+                        <span className="store-swatch-tooltip">{variant.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Action button: Direct Affiliate Link Button (NO PRICE!) */}
+            <div className="store-modal-actions">
+              <a
+                href={affiliateHref}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="store-modal-shop-btn"
+              >
+                <span>Shop on Amazon</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+              <p className="store-modal-affiliate-note">
+                Opens directly on Amazon using your affiliate link.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Individual Product Card ──────────────────────────────────
+function ProductCard({ product, onOpenPreview }) {
   const href = product.url || product.pageUrl || '#';
   const title = product.title || 'Amazon Product';
   const caption = product.caption || product.description || '';
 
   return (
-    <a
+    <div
       className="store-card"
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer sponsored"
-      title={title}
+      onClick={() => onOpenPreview(product)}
+      role="button"
+      tabIndex={0}
+      title="Click to preview colors"
       id={`product-${product.id}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onOpenPreview(product);
+        }
+      }}
     >
-      {/* Image */}
-      <div className="store-card-image-wrap">
-        {product.image && !imgFailed ? (
-          <img
-            src={product.image}
-            alt={title}
-            className="store-card-img"
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <div className="store-card-img-fallback">
-            <PackageIcon size={40} />
-            <span>Amazon</span>
-          </div>
-        )}
-      </div>
+      {/* Auto-sliding Image Gallery */}
+      <CardImageSlider product={product} />
 
       {/* Body */}
       <div className="store-card-body">
+        {/* Star Rating & Bought Proof */}
+        <div className="store-card-meta-row">
+          <StarRating rating={product.rating} reviewsCount={product.reviewsCount} />
+          <BoughtBadge count={product.boughtCount} />
+        </div>
+
         <h2 className="store-card-title">{title}</h2>
 
         {caption && (
           <p className="store-card-caption">{caption}</p>
         )}
 
+        {/* Card Footer: Direct Affiliate Link Button (NO PRICE!) */}
         <div className="store-card-footer">
-          <span className="store-card-btn">Shop on Amazon</span>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            className="store-card-btn"
+            onClick={(e) => e.stopPropagation()}
+            title="Shop directly on Amazon"
+          >
+            <span>Shop on Amazon</span>
+          </a>
         </div>
       </div>
-    </a>
+    </div>
   );
 }
 
@@ -111,6 +374,7 @@ export default function StorePage() {
   const [status, setStatus] = useState('loading'); // 'loading' | 'ok' | 'error'
   const [errorMsg, setErrorMsg] = useState('');
   const [search, setSearch] = useState('');
+  const [previewProduct, setPreviewProduct] = useState(null);
 
   const isFetchingRef = useRef(false);
 
@@ -266,12 +530,24 @@ export default function StorePage() {
             ) : (
               <div className="store-grid">
                 {filtered.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onOpenPreview={setPreviewProduct}
+                  />
                 ))}
               </div>
             )}
           </div>
         </>
+      )}
+
+      {/* ── Product Color Swatches & Details Preview Modal ── */}
+      {previewProduct && (
+        <ProductPreviewModal
+          product={previewProduct}
+          onClose={() => setPreviewProduct(null)}
+        />
       )}
 
       {/* ── Footer ── */}
