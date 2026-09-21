@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookmarkCheck, Link as LinkIcon, Moon, Sun, Download } from 'lucide-react';
+import { BookmarkCheck, Link as LinkIcon, Moon, Sun, Download, Store } from 'lucide-react';
 import { downloadAllExcel } from '../utils/exportExcel';
 
 export function Header({
@@ -65,6 +65,20 @@ export function Header({
               <span>All Sheets</span>
             </button>
           )}
+
+          {/* My Store — opens the public store page */}
+          <a
+            href="/store"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-header-view-store"
+            title="Open your public Amazon store"
+            aria-label="View My Store"
+            id="btn-view-store"
+          >
+            <Store size={13} />
+            <span>My Store</span>
+          </a>
 
           <div className="stats-pill" title={`Total saved links in ${activeMainCategory}`}>
             <BookmarkCheck size={16} />

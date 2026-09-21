@@ -2609,6 +2609,35 @@ body.dark .social-post-btn.social-btn-x.is-posted {
   opacity: 0.9;
 }
 
+/* My Store link-button */
+.btn-header-view-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid #10b981;
+  background: transparent;
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-decoration: none;
+  transition:
+    background-color 0.13s ease,
+    color 0.13s ease,
+    box-shadow 0.13s ease;
+}
+
+.btn-header-view-store:hover {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
 /* ==========================================================================
    Filter Bar — Per-category inline download icon button
    ========================================================================== */
