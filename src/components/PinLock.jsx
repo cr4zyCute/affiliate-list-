@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './PinLock.css';
 
 const CORRECT_PIN = import.meta.env.VITE_ADMIN_PIN || '0000';
@@ -60,7 +60,7 @@ export default function PinLock({ children }) {
 
   return (
     <div className="pin-overlay">
-      <div className={pin-card } ref={containerRef}>
+      <div className={`pin-card ${shake ? 'pin-shake' : ''}`} ref={containerRef}>
         <div className="pin-logo">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -74,7 +74,10 @@ export default function PinLock({ children }) {
 
         <div className="pin-dots" aria-label="PIN entry">
           {Array.from({ length: MAX_LEN }).map((_, i) => (
-            <span key={i} className={pin-dot } />
+            <span
+              key={i}
+              className={`pin-dot ${i < digits.length ? 'pin-dot--filled' : ''}`}
+            />
           ))}
         </div>
 
