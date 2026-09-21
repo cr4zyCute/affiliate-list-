@@ -49,6 +49,25 @@ body {
   letter-spacing: -0.2px;
 }
 
+.header-vault-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #d1d5db;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.header-vault-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 /* Popup Body / States */
 .popup-body {
   display: flex;

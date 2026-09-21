@@ -24,6 +24,21 @@ const pasteBtn = document.getElementById('pasteBtn');
 
 const saveBtn = document.getElementById('saveBtn');
 const statusToast = document.getElementById('statusToast');
+const openVaultBtn = document.getElementById('openVaultBtn');
+
+/**
+ * Finds the open LinkVault admin dashboard tab, avoiding the public store.
+ */
+function findAdminTab(tabs) {
+  return tabs.find((t) => {
+    const url = (t.url || '').toLowerCase();
+    return url.includes('nikki-sixx-acosta') || url.includes('localhost') || url.includes('127.0.0.1');
+  }) || tabs.find((t) => {
+    const url = (t.url || '').toLowerCase();
+    const title = (t.title || '').toLowerCase();
+    return !url.includes('/store') && (url.includes('vercel.app') || url.includes('my-affiliates') || title.includes('linkvault'));
+  });
+}
 
 /**
  * Extracts domain name from a raw URL.
@@ -171,18 +186,7 @@ async function init() {
   // Step A: Auto-detect active category from open LinkVault tab
   try {
     chrome.tabs.query({}, (allTabs) => {
-      const linkvaultTab = allTabs.find((t) => {
-        const url = (t.url || '').toLowerCase();
-        const title = (t.title || '').toLowerCase();
-        return (
-          url.includes('localhost') ||
-          url.includes('127.0.0.1') ||
-          url.includes('vercel.app') ||
-          url.includes('my-affiliates') ||
-          title.includes('linkvault') ||
-          title.includes('affiliate')
-        );
-      });
+      const linkvaultTab = findAdminTab(allTabs);
 
       if (linkvaultTab && linkvaultTab.id) {
         chrome.scripting.executeScript(
@@ -394,18 +398,7 @@ async function handleSave() {
 
   // 3. Find any open LinkVault tab to update UI in real time
   chrome.tabs.query({}, (tabs) => {
-    const linkvaultTab = tabs.find((t) => {
-      const url = (t.url || '').toLowerCase();
-      const title = (t.title || '').toLowerCase();
-      return (
-        url.includes('localhost') ||
-        url.includes('127.0.0.1') ||
-        url.includes('vercel.app') ||
-        url.includes('my-affiliates') ||
-        title.includes('linkvault') ||
-        title.includes('affiliate')
-      );
-    });
+    const linkvaultTab = findAdminTab(tabs);
 
     if (linkvaultTab && linkvaultTab.id) {
       // App is open — inject a script directly into the app tab to update state in real time
@@ -451,6 +444,13 @@ async function handleSave() {
 // Event Listeners
 saveBtn.addEventListener('click', handleSave);
 pasteBtn.addEventListener('click', handlePaste);
+
+if (openVaultBtn) {
+  openVaultBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'https://findonmystore.vercel.app/nikki-sixx-acosta' });
+  });
+}
 
 affiliateLinkInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {

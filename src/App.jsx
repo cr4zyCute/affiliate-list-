@@ -220,22 +220,33 @@ export default function App() {
   // CHANGED: Handle incoming shared link from Android share sheet WITH real title + image
   // This mirrors what the browser extension does: optimistic card first, then fetch metadata.
   useEffect(() => {
-    if (!window.location.pathname.startsWith('/share-target')) return;
+    const isShareTarget = window.location.pathname.startsWith('/share-target');
+    let pendingSearch = '';
+    try {
+      pendingSearch = sessionStorage.getItem('lv_pending_share') || '';
+    } catch (e) {}
 
-    const params = new URLSearchParams(window.location.search);
+    if (!isShareTarget && !pendingSearch) return;
+
+    const queryString = window.location.search || pendingSearch || '';
+    const params = new URLSearchParams(queryString);
     const sharedRaw = params.get('url') || params.get('text') || '';
 
     // Extract the URL if it was shared as text (e.g. "Check this out: https://...")
     const urlMatch = sharedRaw.match(/https?:\/\/[^\s]+/);
     const extractedUrl = urlMatch ? urlMatch[0].replace(/[.,;:)\]}>"'`]+$/, '') : sharedRaw.trim();
 
+    try {
+      sessionStorage.removeItem('lv_pending_share');
+    } catch (e) {}
+
     if (!extractedUrl) {
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', '/nikki-sixx-acosta');
       return;
     }
 
-    // Clean up the URL bar immediately so the share-target path disappears
-    window.history.replaceState({}, '', '/');
+    // Clean up the URL bar immediately so the share-target path disappears, staying in admin dashboard
+    window.history.replaceState({}, '', '/nikki-sixx-acosta');
 
     // ── Fetch metadata + save, same flow as the browser extension ──
     (async () => {

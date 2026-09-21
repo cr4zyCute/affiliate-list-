@@ -4,6 +4,7 @@
   ],
   "rewrites": [
     { "source": "/share-target", "destination": "/index.html" },
+    { "source": "/share-target/(.*)", "destination": "/index.html" },
     { "source": "/store", "destination": "/index.html" },
     { "source": "/store/", "destination": "/index.html" },
     { "source": "/nikki-sixx-acosta", "destination": "/index.html" },

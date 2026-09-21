@@ -616,6 +616,23 @@ export default function StorePage() {
           As an Amazon Associate, I earn from qualifying purchases.
           Prices and availability are subject to change.
         </p>
+        <p style={{ marginTop: '12px' }}>
+          <a
+            href="/nikki-sixx-acosta"
+            style={{
+              fontSize: '11px',
+              color: '#bbb',
+              textDecoration: 'none',
+              letterSpacing: '0.02em',
+              opacity: 0.6,
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+          >
+            Dashboard
+          </a>
+        </p>
       </footer>
     </div>
   );

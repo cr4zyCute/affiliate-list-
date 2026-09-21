@@ -197,11 +197,11 @@ export default defineConfig(({ mode }) => {
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'shopee-logo.png'],
       manifest: {
-        id: '/',
+        id: '/nikki-sixx-acosta',
         name: 'LinkVault',
         short_name: 'LinkVault',
-        description: 'Save affiliate links from Shopee and TikTok',
-        start_url: '/',
+        description: 'Save affiliate links from Shopee, TikTok, and Amazon',
+        start_url: '/nikki-sixx-acosta',
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',
@@ -231,6 +231,22 @@ export default defineConfig(({ mode }) => {
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
+          },
+        ],
+        shortcuts: [
+          {
+            name: 'Admin Dashboard',
+            short_name: 'Admin',
+            description: 'Open LinkVault admin dashboard',
+            url: '/nikki-sixx-acosta',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }],
+          },
+          {
+            name: 'Public Store',
+            short_name: 'Store',
+            description: 'Open public Amazon store',
+            url: '/store',
+            icons: [{ src: '/icon-192.png', sizes: '192x192' }],
           },
         ],
         // THIS is what makes it appear in the Android share sheet
