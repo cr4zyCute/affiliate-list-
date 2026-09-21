@@ -2635,3 +2635,61 @@ body.dark .social-post-btn.social-btn-x.is-posted {
   border-color: var(--border-hover);
   color: var(--text-primary);
 }
+
+/* ── Store Visibility Toggle (Amazon cards) ── */
+.card-store-toggle {
+  display: flex;
+  align-items: center;
+  margin: 4px 0 6px;
+}
+
+.card-store-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.13s, border-color 0.13s, color 0.13s;
+  line-height: 1;
+}
+
+.card-store-btn.store-on {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.card-store-btn.store-on:hover {
+  background: #bbf7d0;
+  border-color: #4ade80;
+}
+
+.card-store-btn.store-off {
+  background: var(--bg-subtle, #f4f4f5);
+  border-color: var(--border-default, #e4e4e7);
+  color: var(--text-muted, #71717a);
+}
+
+.card-store-btn.store-off:hover {
+  background: var(--bg-hover, #ececec);
+  border-color: var(--border-hover, #d4d4d8);
+}
+
+/* Dark mode store toggle */
+[data-theme="dark"] .card-store-btn.store-on {
+  background: #14532d;
+  border-color: #166534;
+  color: #86efac;
+}
+
+[data-theme="dark"] .card-store-btn.store-off {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #71717a;
+}

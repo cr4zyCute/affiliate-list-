@@ -9,6 +9,7 @@ export function DateGroup({
   onToggleDone,
   onAddToCategory,
   onTogglePostedPlatform,
+  onToggleStore,
 }) {
   const { primaryLabel, secondaryLabel, links } = group;
 
@@ -38,6 +39,7 @@ export function DateGroup({
             onToggleDone={onToggleDone}
             onAddToCategory={onAddToCategory}
             onTogglePostedPlatform={onTogglePostedPlatform}
+            onToggleStore={onToggleStore}
           />
         ))}
       </div>

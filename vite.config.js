@@ -1,11 +1,11 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'node:fs'
 import path from 'node:path'
 
 // Custom dev middleware plugin to bridge LinkVault Saver extension via pending-links.json
-function extensionApiPlugin() {
+function extensionApiPlugin(env) {
   const pendingFile = path.resolve(process.cwd(), 'pending-links.json')
 
   // Helper to read pending links safely
@@ -85,6 +85,80 @@ function extensionApiPlugin() {
           return
         }
 
+        // GET /api/store: Public Amazon store — query Turso directly in dev
+        if (req.method === 'GET' && url === '/api/store') {
+          const dbUrl = env.TURSO_DATABASE_URL || env.VITE_TURSO_DATABASE_URL
+          const authToken = env.TURSO_AUTH_TOKEN || env.VITE_TURSO_AUTH_TOKEN
+
+          if (!dbUrl || !authToken) {
+            res.setHeader('Content-Type', 'application/json')
+            res.statusCode = 500
+            res.end(JSON.stringify({ error: 'Store database not configured.' }))
+            return
+          }
+
+          ;(async () => {
+            try {
+              const tursoUrl = dbUrl.replace('libsql://', 'https://')
+              const response = await fetch(`${tursoUrl}/v2/pipeline`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${authToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  requests: [
+                    {
+                      type: 'execute',
+                      stmt: {
+                        sql: `SELECT id, url, domain, category, title, description, image, caption, affiliate_url, page_url, created_at
+                              FROM links
+                              WHERE (category = 'amazon' OR url LIKE '%amazon.%' OR url LIKE '%amzn.%')
+                                AND (store_visible IS NULL OR store_visible = 1)
+                              ORDER BY created_at DESC`,
+                        args: [],
+                      },
+                    },
+                    { type: 'close' },
+                  ],
+                }),
+              })
+
+              if (!response.ok) throw new Error(`Turso error: ${response.status}`)
+
+              const data = await response.json()
+              const rows = data?.results?.[0]?.response?.result?.rows ?? []
+              const cols = data?.results?.[0]?.response?.result?.cols ?? []
+              const colNames = cols.map((c) => c.name)
+
+              const products = rows.map((row) => {
+                const obj = {}
+                colNames.forEach((col, i) => { obj[col] = row[i]?.value ?? null })
+                return {
+                  id: obj.id,
+                  title: obj.title || 'Amazon Product',
+                  description: obj.description || '',
+                  caption: obj.caption || '',
+                  image: obj.image || null,
+                  url: obj.affiliate_url || obj.url,
+                  pageUrl: obj.page_url || obj.url,
+                  domain: obj.domain || 'amazon.com',
+                  createdAt: obj.created_at,
+                }
+              })
+
+              res.setHeader('Content-Type', 'application/json')
+              res.statusCode = 200
+              res.end(JSON.stringify({ products }))
+            } catch (err) {
+              res.setHeader('Content-Type', 'application/json')
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message || 'Failed to load store products.' }))
+            }
+          })()
+          return
+        }
+
         next()
       })
     },
@@ -92,10 +166,14 @@ function extensionApiPlugin() {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    extensionApiPlugin(),
+export default defineConfig(({ mode }) => {
+  // Load all env vars from .env.local (prefix '' = load everything, not just VITE_)
+  const env = loadEnv(mode, process.cwd(), '')
+
+  return {
+    plugins: [
+      react(),
+      extensionApiPlugin(env),
     // CHANGED: Added VitePWA with Web Share Target for Android share sheet integration
     VitePWA({
       registerType: 'autoUpdate',
@@ -162,4 +240,6 @@ export default defineConfig({
       '/api/shopee': 'http://localhost:3000',
     },
   },
+  }
 })
+

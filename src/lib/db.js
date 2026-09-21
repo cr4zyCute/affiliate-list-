@@ -86,6 +86,12 @@ async function ensureTable(client) {
       } catch {
         // column may already exist
       }
+
+      try {
+        await client.execute(`ALTER TABLE links ADD COLUMN store_visible INTEGER DEFAULT 1;`);
+      } catch {
+        // column may already exist
+      }
     })().catch((err) => {
       console.warn('Table auto-init notice:', err.message || err);
       // Reset so next query can retry if needed
@@ -109,7 +115,7 @@ export async function getAllLinks() {
     await ensureTable(client);
 
     const result = await client.execute({
-      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms FROM links ORDER BY created_at DESC',
+      sql: 'SELECT id, url, domain, category, title, description, image, favicon, created_at, status, completed_at, main_category, caption, affiliate_url, page_url, posted_platforms, store_visible FROM links ORDER BY created_at DESC',
       args: [],
     });
 
@@ -146,6 +152,7 @@ export async function getAllLinks() {
         affiliateUrl: row.affiliate_url ? String(row.affiliate_url) : null,
         pageUrl: row.page_url ? String(row.page_url) : null,
         postedPlatforms,
+        storeVisible: row.store_visible === 0 ? false : true,
         isLoading: false,
       };
     });
@@ -364,6 +371,30 @@ export async function updateLinkPostedPlatforms(id, postedPlatforms) {
     return true;
   } catch (error) {
     console.error('Turso [updateLinkPostedPlatforms] error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Toggle a link's visibility on the public Amazon store.
+ */
+export async function updateStoreVisible(id, visible) {
+  const client = getTursoClient();
+  if (!client) {
+    throw new Error('Turso credentials are not configured in environment variables.');
+  }
+
+  try {
+    await ensureTable(client);
+
+    await client.execute({
+      sql: 'UPDATE links SET store_visible = ? WHERE id = ?',
+      args: [visible ? 1 : 0, id],
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Turso [updateStoreVisible] error:', error);
     throw error;
   }
 }

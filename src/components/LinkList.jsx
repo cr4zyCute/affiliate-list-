@@ -20,6 +20,7 @@ export function LinkList({
   onToggleDone,
   onAddToCategory,
   onTogglePostedPlatform,
+  onToggleStore,
   activeMainCategory = 'UA',
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
@@ -191,6 +192,7 @@ export function LinkList({
               onToggleDone={onToggleDone}
               onAddToCategory={onAddToCategory}
               onTogglePostedPlatform={onTogglePostedPlatform}
+              onToggleStore={onToggleStore}
             />
           ))
         )}

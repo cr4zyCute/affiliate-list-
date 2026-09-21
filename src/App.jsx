@@ -16,6 +16,7 @@ import {
   updateLink,
   updateLinkStatus,
   updateLinkPostedPlatforms,
+  updateStoreVisible,
   linkExists,
 } from './lib/db';
 import {
@@ -632,6 +633,30 @@ export default function App() {
     }
   };
 
+  const handleToggleStore = async (id, visible) => {
+    // Optimistically update local state
+    setLinks((prev) => {
+      const next = prev.map((l) => (l.id === id ? { ...l, storeVisible: visible } : l));
+      setCachedLinks(next);
+      return next;
+    });
+
+    showToast(visible ? 'Product shown on store' : 'Product hidden from store', visible ? 'success' : 'info');
+
+    try {
+      await updateStoreVisible(id, visible);
+    } catch (err) {
+      console.warn('Failed to update store visibility:', err);
+      // Rollback
+      setLinks((prev) => {
+        const next = prev.map((l) => (l.id === id ? { ...l, storeVisible: !visible } : l));
+        setCachedLinks(next);
+        return next;
+      });
+      showToast('Update failed — try again', 'error');
+    }
+  };
+
   const visibleLinks = links.filter((l) => (l.mainCategory || 'UA') === activeMainCategory);
   const existingUrls = visibleLinks.map((l) => l.url);
 
@@ -662,6 +687,7 @@ export default function App() {
             onToggleDone={handleToggleDone}
             onAddToCategory={handleAddToCategory}
             onTogglePostedPlatform={handleTogglePostedPlatform}
+            onToggleStore={handleToggleStore}
             activeMainCategory={activeMainCategory}
           />
         </main>
