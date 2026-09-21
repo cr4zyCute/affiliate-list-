@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import './StorePage.css';
+import { subscribeToStoreUpdates } from '../utils/storeSync';
 
 // ── Icons (inline SVG — no extra dependencies) ──────────────
 function ShoppingBagIcon({ size = 24 }) {
@@ -111,24 +112,72 @@ export default function StorePage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [search, setSearch] = useState('');
 
-  const loadProducts = async () => {
-    setStatus('loading');
-    setErrorMsg('');
+  const isFetchingRef = useRef(false);
+
+  const loadProducts = useCallback(async (isBackground = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    if (!isBackground) {
+      setStatus('loading');
+      setErrorMsg('');
+    }
+
     try {
-      const res = await fetch('/api/store');
+      // Prevent all caching (browser, proxy, CDN) with cache-buster timestamp
+      const res = await fetch(`/api/store?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       setProducts(data.products || []);
       setStatus('ok');
     } catch (err) {
-      setErrorMsg(err.message || 'Something went wrong.');
-      setStatus('error');
+      // Only show error UI on full page initial loads; don't break UI on background poll failures
+      if (!isBackground) {
+        setErrorMsg(err.message || 'Something went wrong.');
+        setStatus('error');
+      }
+    } finally {
+      isFetchingRef.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    // 1. Initial load
+    loadProducts(false);
+
+    // 2. Cross-tab instant sync (fires when links are added/updated in admin tab)
+    const unsubscribe = subscribeToStoreUpdates(() => {
+      loadProducts(true);
+    });
+
+    // 3. Auto-refresh when user focuses or returns to the store tab
+    const handleFocus = () => loadProducts(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadProducts(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 4. Background polling every 10 seconds to keep catalog updated
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadProducts(true);
+      }
+    }, 10000);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [loadProducts]);
 
   // Filter by search term (title or caption)
   const filtered = useMemo(() => {

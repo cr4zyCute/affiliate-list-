@@ -148,6 +148,7 @@ function extensionApiPlugin(env) {
               })
 
               res.setHeader('Content-Type', 'application/json')
+              res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
               res.statusCode = 200
               res.end(JSON.stringify({ products }))
             } catch (err) {

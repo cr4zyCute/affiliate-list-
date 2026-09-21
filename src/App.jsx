@@ -24,6 +24,7 @@ import {
   setCachedLinks,
   clearCache,
 } from './utils/storage';
+import { broadcastStoreUpdate } from './utils/storeSync';
 import './App.css';
 
 /**
@@ -431,6 +432,7 @@ export default function App() {
       try {
         await saveLink(item);
         showToast(`Saved to ${activeMainCategory}`, 'success');
+        broadcastStoreUpdate();
       } catch (dbError) {
         console.warn('Turso save failed, kept in local cache:', dbError);
         showToast(`Saved to ${activeMainCategory} locally — sync failed`, 'warning');
@@ -494,6 +496,7 @@ export default function App() {
     try {
       await deleteLink(id);
       showToast(`Removed "${targetLink?.title || 'Link'}"`, 'info');
+      broadcastStoreUpdate();
     } catch (err) {
       console.error('Turso delete failed:', err);
       // 3. Rollback UI on failure
@@ -518,6 +521,7 @@ export default function App() {
     try {
       await updateLink(id, updatedFields);
       showToast('Bookmark updated', 'success');
+      broadcastStoreUpdate();
     } catch (err) {
       console.error('Turso update failed:', err);
       // 3. Rollback UI on failure
@@ -645,6 +649,7 @@ export default function App() {
 
     try {
       await updateStoreVisible(id, visible);
+      broadcastStoreUpdate();
     } catch (err) {
       console.warn('Failed to update store visibility:', err);
       // Rollback
