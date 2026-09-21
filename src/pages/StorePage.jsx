@@ -154,20 +154,46 @@ function CardImageSlider({ product }) {
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef(null);
 
+  // Viewport detector: ONLY run slider when card is physically visible on visitor's screen
   useEffect(() => {
-    if (variants.length <= 1 || isHovered) return;
+    if (!containerRef.current || variants.length <= 1) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0.1 } // 10% visible in viewport
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [variants.length]);
+
+  // Timer only ticks if: multiple colors exist + visible on screen + not hovered
+  useEffect(() => {
+    if (variants.length <= 1 || isHovered || !isVisible) return;
+
     const timer = setInterval(() => {
       setCurrentIdx((prev) => (prev + 1) % variants.length);
     }, 3200);
+
     return () => clearInterval(timer);
-  }, [variants.length, isHovered]);
+  }, [variants.length, isHovered, isVisible]);
 
   const currentVariant = variants[currentIdx] || variants[0];
   const displayImg = currentVariant?.image || product.image;
 
   return (
     <div
+      ref={containerRef}
       className="store-card-image-wrap"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
