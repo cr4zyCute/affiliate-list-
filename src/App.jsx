@@ -248,56 +248,34 @@ export default function App() {
     // Clean up the URL bar immediately so the share-target path disappears, staying in admin dashboard
     window.history.replaceState({}, '', '/nikki-sixx-acosta');
 
-    // ── Fetch metadata + save, same flow as the browser extension ──
+    // ── Instant save flow: zero waiting, saves directly to Turso in < 200ms ──
     (async () => {
       const category = detectCategory(extractedUrl);
 
-      // 1. Optimistic placeholder card (shows instantly with loading indicator)
-      const optimistic = createOptimisticLink(extractedUrl);
-      optimistic.mainCategory = activeMainCategory;
-      optimistic.isLoading = true;
-      const optimisticId = optimistic.id;
-
-      setLinks((prev) => [optimistic, ...prev]);
-
-      let enriched = { ...optimistic };
-
-      // 2. Fetch real TikTok title + thumbnail from our serverless API
+      // 1. Create clean link immediately with no loading spinner
+      const newLink = createOptimisticLink(extractedUrl);
+      newLink.mainCategory = activeMainCategory;
+      newLink.isLoading = false;
+      newLink.createdAt = new Date().toISOString();
       if (category === 'tiktok') {
-        try {
-          const res = await fetch(`/api/tiktok?url=${encodeURIComponent(extractedUrl)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (!data.error && data.title) {
-              enriched.title = data.title;
-              enriched.image = data.image || null;
-              enriched.description = data.description || '';
-            }
-          }
-        } catch (fetchErr) {
-          console.warn('Share target: TikTok metadata fetch failed:', fetchErr);
-        }
+        newLink.title = 'TikTok Video';
       }
 
-      // 3. Finalize and update the card in state
-      enriched.isLoading = false;
-      enriched.createdAt = new Date().toISOString();
-
+      // 2. Add directly to state & local cache
       setLinks((prev) => {
-        const next = prev.map((l) => (l.id === optimisticId ? enriched : l));
+        const next = [newLink, ...prev];
         setCachedLinks(next);
         return next;
       });
 
-      // 4. Save to Turso database
+      // 3. Immediately save to Turso database (< 200ms)
       try {
-        await saveLink(enriched);
+        await saveLink(newLink);
         showToast(
-          category === 'tiktok' && enriched.image
-            ? '🎵 TikTok saved with preview!'
-            : 'Link saved from share!',
+          category === 'tiktok' ? '🎵 TikTok saved!' : 'Link saved!',
           'success'
         );
+        broadcastStoreUpdate();
       } catch (dbErr) {
         console.warn('Share target: Turso save failed, kept locally:', dbErr);
         showToast('Saved locally — sync pending', 'warning');
