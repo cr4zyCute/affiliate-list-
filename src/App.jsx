@@ -153,7 +153,7 @@ export default function App() {
   }, []);
 
   // CHANGED: Multi-Device Smart Sync Engine
-  // 1. 5s adaptive polling loop while visible (paused when hidden to save reads)
+  // 1. 2s adaptive polling loop while visible (paused when hidden to save reads)
   // 2. Instant sync triggers on visibilitychange, window.focus, and window.online
   // 3. Clean teardown on unmount
   useEffect(() => {
@@ -168,7 +168,7 @@ export default function App() {
           if (document.visibilityState === 'visible') {
             syncFromTurso(false);
           }
-        }, 5000);
+        }, 2000);
       }
     };
 
