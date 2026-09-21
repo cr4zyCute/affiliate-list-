@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.jsx'
 import StorePage from './pages/StorePage.jsx'
+import PinLock from './components/PinLock.jsx'
 
 // Auto-register PWA service worker immediately for WebAPK minting on Android
 registerSW({ immediate: true })
@@ -23,7 +24,7 @@ if (path === '/') {
 
   createRoot(document.getElementById('root')).render(
     <StrictMode>
-      {isAdmin ? <App /> : <StorePage />}
+      {isAdmin ? <PinLock><App /></PinLock> : <StorePage />}
     </StrictMode>,
   )
 }
