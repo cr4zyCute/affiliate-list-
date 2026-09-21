@@ -1,9 +1,13 @@
 {
+  "redirects": [
+    { "source": "/", "destination": "/store", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/share-target", "destination": "/index.html" },
     { "source": "/store", "destination": "/index.html" },
     { "source": "/store/", "destination": "/index.html" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/nikki-sixx-acosta", "destination": "/index.html" },
+    { "source": "/nikki-sixx-acosta/", "destination": "/index.html" },
+    { "source": "/api/(.*)", "destination": "/api/$1" }
   ]
 }

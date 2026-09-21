@@ -8,12 +8,23 @@ import StorePage from './pages/StorePage.jsx'
 // Auto-register PWA service worker immediately for WebAPK minting on Android
 registerSW({ immediate: true })
 
-// Simple pathname router — /store is public, everything else is the private dashboard
-const isStorePage = window.location.pathname === '/store' || window.location.pathname === '/store/'
+// Routing:
+//   /store              → public store page
+//   /nikki-sixx-acosta  → private admin dashboard
+//   /                   → redirect to /store
+const path = window.location.pathname.replace(/\/+$/, '') || '/'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    {isStorePage ? <StorePage /> : <App />}
-  </StrictMode>,
-)
+if (path === '/') {
+  // Redirect root visitors to the store
+  window.location.replace('/store')
+} else {
+  const isAdmin = path === '/nikki-sixx-acosta'
+  const isStore = path === '/store'
+
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      {isAdmin ? <App /> : <StorePage />}
+    </StrictMode>,
+  )
+}
 
