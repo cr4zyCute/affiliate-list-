@@ -20,9 +20,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Server-side only env vars (no VITE_ prefix — never exposed to browser)
-  const dbUrl = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
+  // Read server-side env vars, with fallback to VITE_ prefix if configured that way in Vercel
+  const dbUrl = process.env.TURSO_DATABASE_URL || process.env.VITE_TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN || process.env.VITE_TURSO_AUTH_TOKEN;
 
   if (!dbUrl || !authToken) {
     return res.status(500).json({ error: 'Store database not configured.' });
