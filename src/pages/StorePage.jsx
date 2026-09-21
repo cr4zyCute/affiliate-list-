@@ -36,6 +36,38 @@ function PackageIcon({ size = 48 }) {
   );
 }
 
+function FlameIcon({ size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"
+      stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </svg>
+  );
+}
+
+function PaletteIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+    </svg>
+  );
+}
+
+function CloseIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 // ── Skeleton loader cards ────────────────────────────────────
 function SkeletonGrid() {
   return (
@@ -108,7 +140,7 @@ function BoughtBadge({ count }) {
   if (!count) return null;
   return (
     <div className="store-bought-badge" title={count}>
-      <span className="store-bought-fire">🔥</span>
+      <FlameIcon size={12} />
       <span>{count}</span>
     </div>
   );
@@ -210,7 +242,7 @@ function ProductPreviewModal({ product, onClose }) {
     <div className="store-modal-overlay" onClick={onClose}>
       <div className="store-modal-card" onClick={(e) => e.stopPropagation()}>
         <button className="store-modal-close" onClick={onClose} aria-label="Close preview">
-          ✕
+          <CloseIcon size={14} />
         </button>
 
         <div className="store-modal-grid">
@@ -247,15 +279,17 @@ function ProductPreviewModal({ product, onClose }) {
               <p className="store-modal-caption">{product.caption}</p>
             )}
 
-            {/* 🎨 Active Color Name */}
+            {/* Color Section */}
             <div className="store-modal-color-section">
               <div className="store-modal-color-label">
-                <span className="store-color-icon">🎨</span>
+                <span className="store-color-icon">
+                  <PaletteIcon size={15} />
+                </span>
                 <span className="store-color-label-text">Color:</span>
                 <span className="store-color-active-name">{activeColorName}</span>
               </div>
 
-              {/* 👗 All Color Swatches / Thumbnails */}
+              {/* Color Swatches / Thumbnails */}
               {variants.length > 0 && (
                 <div className="store-swatches-grid" role="radiogroup" aria-label="Available colors">
                   {variants.map((variant, idx) => {
@@ -303,7 +337,7 @@ function ProductPreviewModal({ product, onClose }) {
                 </svg>
               </a>
               <p className="store-modal-affiliate-note">
-                Opens directly on Amazon using your affiliate link.
+                Opens directly on Amazon to Shop More .
               </p>
             </div>
           </div>
