@@ -83,13 +83,9 @@ export function LinkCard({
     category === 'amazon' ||
     (url && (url.toLowerCase().includes('amazon.') || url.toLowerCase().includes('amzn.')));
 
-  // Target affiliate link for copying (uses affiliateUrl if present, or url if no separate pageUrl was saved, or if pageUrl matches url)
-  const hasAffiliateLink = Boolean(
-    affiliateUrl || 
-    (!pageUrl && url) || 
-    (pageUrl && url && pageUrl === url)
-  );
-  const effectiveAffiliateLink = affiliateUrl || ((!pageUrl || pageUrl === url) ? url : '');
+  // Target affiliate link for copying (uses affiliateUrl if present, or url if no separate pageUrl was saved)
+  const hasAffiliateLink = Boolean(affiliateUrl || (!pageUrl && url));
+  const effectiveAffiliateLink = affiliateUrl || (!pageUrl ? url : '');
   const visitUrl = pageUrl || url;
 
   const isDone = status === 'done';
