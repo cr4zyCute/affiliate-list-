@@ -12,7 +12,7 @@ export function EditModal({ isOpen, link, onSave, onClose }) {
   useEffect(() => {
     if (link) {
       setTitle(link.title || '');
-      setAffiliateUrl(link.affiliateUrl || (link.url && !link.pageUrl ? link.url : ''));
+      setAffiliateUrl(link.affiliateUrl || (!link.pageUrl || link.pageUrl === link.url ? link.url : ''));
       setPageUrl(link.pageUrl || link.url || '');
       setDescription(link.description || '');
       setImageUrl(link.image || '');
